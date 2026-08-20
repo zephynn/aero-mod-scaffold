@@ -33,6 +33,9 @@ abstract class Module(
     var enabled: Boolean = false
         private set
 
+    /** Whether the user has pinned this module into the Radial Menu / Command Bar favourites. */
+    var pinned: Boolean = false
+
     protected val mc: MinecraftClient get() = MinecraftClient.getInstance()
 
     /** Ordered list of this module's settings, for both the GUI and config (de)serialization. */
