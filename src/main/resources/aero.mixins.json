@@ -8,6 +8,7 @@
   "client": [
     "CameraMixin",
     "InputAccessor",
-    "KeyboardInputMixin"
+    "KeyboardInputMixin",
+    "LightmapTextureManagerMixin"
   ]
 }
