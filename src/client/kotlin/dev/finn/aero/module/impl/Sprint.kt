@@ -19,10 +19,9 @@ class Sprint : Module(
     override fun onTick() {
         val player = mc.player ?: return
 
-        // movementForward > 0 means the player is holding the "move forward" key.
         // We don't force-sprint while sneaking or moving backward, matching
         // vanilla's own restrictions on when sprinting is allowed.
-        val movingForward = player.input.movementForward > 0f
+        val movingForward = player.input.hasForwardMovement()
         val canSprint = !player.isSneaking && !player.isSprinting && movingForward
 
         if (canSprint) {

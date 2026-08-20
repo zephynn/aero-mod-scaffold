@@ -1,7 +1,7 @@
 # Aero
 
 A personal-use Minecraft Java Edition utility client, built as a Fabric mod
-in Kotlin. Targets Minecraft 1.21.1.
+in Kotlin. Targets Minecraft 1.21.11.
 
 ## Setup (zero modding experience required)
 

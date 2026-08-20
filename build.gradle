@@ -1,6 +1,6 @@
 plugins {
 	id 'fabric-loom' version "${loom_version}"
-	id 'org.jetbrains.kotlin.jvm' version '2.0.21'
+	id 'org.jetbrains.kotlin.jvm' version '2.4.10'
 	id 'maven-publish'
 }
 
@@ -76,6 +76,31 @@ jar {
 		rename { "${it}_$projectName"}
 	}
 }
+
+// Deploy the built mod jar straight into the "1.21.11" Prism Launcher
+// instance's mods folder, so `./gradlew build` (or an IDE build) is enough
+// to pick the new jar up next time that instance is launched.
+def prismModsDir = file("/home/zephyn/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/1.21.11/minecraft/mods")
+
+tasks.register("deployToPrism", Copy) {
+	group = "aero"
+	description = "Copies the built mod jar into the Prism Launcher 1.21.11 instance's mods folder."
+
+	dependsOn remapJar
+	from(remapJar.archiveFile)
+	into(prismModsDir)
+
+	doFirst {
+		// Remove older Aero jars first so renames/version bumps don't leave
+		// stale duplicates loaded alongside the new one.
+		if (prismModsDir.exists()) {
+			prismModsDir.listFiles({ f -> f.name.startsWith("aero-") && f.name.endsWith(".jar") } as FileFilter)
+				?.each { it.delete() }
+		}
+	}
+}
+
+build.finalizedBy(deployToPrism)
 
 // configure the maven publication
 publishing {
