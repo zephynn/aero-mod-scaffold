@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "aero",
+	"version": "${version}",
+	"name": "Aero",
+	"description": "A personal-use Minecraft utility client: modules for movement, rendering, and visibility, with a config-driven ClickGUI.",
+	"authors": [
+		"Finn"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/"
+	},
+	"license": "CC0-1.0",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.finn.aero.client.AeroClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.9",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}
