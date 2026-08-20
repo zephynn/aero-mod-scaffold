@@ -1,6 +1,7 @@
 package dev.finn.aero.client
 
 import dev.finn.aero.config.ConfigManager
+import dev.finn.aero.gui.ClickGuiScreen
 import dev.finn.aero.module.ModuleManager
 import dev.finn.aero.module.impl.Sprint
 import net.fabricmc.api.ClientModInitializer
@@ -55,10 +56,24 @@ object AeroClient : ClientModInitializer {
         LOGGER.info("Aero loaded with {} module(s).", ModuleManager.all().size)
     }
 
+    /** Opens the ClickGUI. Separate from module keybinds so it can never collide with one. */
+    private const val GUI_KEYBIND = org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
+
     private val wasDown = HashMap<Int, Boolean>()
 
     private fun pollKeybinds(client: MinecraftClient) {
         val window = client.window ?: return
+
+        val guiDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle, GUI_KEYBIND) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+        if (guiDown && wasDown[GUI_KEYBIND] != true && client.currentScreen == null) {
+            client.setScreen(ClickGuiScreen())
+        }
+        wasDown[GUI_KEYBIND] = guiDown
+
+        // Don't let module keybinds fire while any screen (including our own
+        // GUI, or an unrelated one like the inventory) is open.
+        if (client.currentScreen != null) return
+
         for (module in ModuleManager.all()) {
             val key = module.keybind
             if (key < 0) continue
