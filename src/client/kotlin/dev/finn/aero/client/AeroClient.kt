@@ -3,6 +3,8 @@ package dev.finn.aero.client
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.gui.ClickGuiScreen
 import dev.finn.aero.module.ModuleManager
+import dev.finn.aero.module.impl.Freecam
+import dev.finn.aero.module.impl.Fullbright
 import dev.finn.aero.module.impl.Sprint
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -32,6 +34,8 @@ object AeroClient : ClientModInitializer {
         // line here. Nothing else needs to change for it to tick, render,
         // save/load, and receive its keybind.
         ModuleManager.register(Sprint())
+        ModuleManager.register(Fullbright())
+        ModuleManager.register(Freecam())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
