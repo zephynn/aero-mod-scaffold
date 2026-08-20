@@ -18,4 +18,8 @@ object FreecamState {
     /** World-space position the camera should render from, or null when inactive. */
     @JvmField
     var position: Vec3d? = null
+
+    /** Blocks per second. CameraMixin reads this every frame, so changing it live is instant. */
+    @JvmField
+    var speed: Double = 8.0
 }
