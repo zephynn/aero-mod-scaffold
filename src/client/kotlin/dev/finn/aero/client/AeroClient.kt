@@ -2,7 +2,8 @@ package dev.finn.aero.client
 
 import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
-import dev.finn.aero.gui.ClickGuiScreen
+import dev.finn.aero.gui.CommandPaletteScreen
+import dev.finn.aero.gui.GuiOpener
 import dev.finn.aero.module.ModuleManager
 import dev.finn.aero.module.impl.AutoAttributeSwap
 import dev.finn.aero.module.impl.AutoTotem
@@ -109,15 +110,32 @@ object AeroClient : ClientModInitializer {
 
     private val wasDown = HashMap<Int, Boolean>()
 
+    /** Synthetic key into [wasDown] for the Alt+RightShift combo's rising-edge state -- distinct from any real GLFW keycode (which are all >= -1, GLFW_KEY_UNKNOWN). */
+    private const val PALETTE_WAS_DOWN_KEY = -1000
+
     private fun pollKeybinds(client: Minecraft) {
         val window = client.window ?: return
 
         val guiKey = ClientSettings.guiKeybind
         val guiDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), guiKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS
         if (guiDown && wasDown[guiKey] != true && client.gui.screen() == null) {
-            client.gui.setScreen(ClickGuiScreen())
+            client.gui.setScreen(GuiOpener.clickGuiScreen())
         }
         wasDown[guiKey] = guiDown
+
+        // Independent of the single-keycode guiKeybind system above: a fixed
+        // Alt+RightShift combo that opens the command palette, gated the
+        // same way (only fires from gameplay, not while any screen is open).
+        // Not user-rebindable, so this is its own raw polling block rather
+        // than going through Module.keybind/ClientSettings.guiKeybind.
+        val altDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT) == org.lwjgl.glfw.GLFW.GLFW_PRESS ||
+            org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+        val paletteKey = org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
+        val paletteDown = altDown && org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), paletteKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+        if (paletteDown && wasDown[PALETTE_WAS_DOWN_KEY] != true && client.gui.screen() == null) {
+            client.gui.setScreen(CommandPaletteScreen())
+        }
+        wasDown[PALETTE_WAS_DOWN_KEY] = paletteDown
 
         // Don't let module keybinds fire while any screen (including our own
         // GUI, or an unrelated one like the inventory) is open.
