@@ -3,8 +3,7 @@ package dev.finn.aero.mixin;
 import dev.finn.aero.module.impl.FreecamState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,8 +40,8 @@ public abstract class CameraMixin {
     /** -1 means "no previous frame yet" -- avoids one huge jump on the first frame after enabling. */
     private long aero$lastFrameNanos = -1;
 
-    @Inject(method = "setup(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
-    private void aero$overridePosition(Level area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress, CallbackInfo ci) {
+    @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V", at = @At("TAIL"))
+    private void aero$overridePosition(DeltaTracker deltaTracker, CallbackInfo ci) {
         Vec3 pos = FreecamState.INSTANCE.position;
         if (!FreecamState.INSTANCE.active || pos == null) {
             aero$lastFrameNanos = -1;
@@ -80,7 +79,7 @@ public abstract class CameraMixin {
             if (direction.lengthSqr() > 0.0) direction = direction.normalize();
             direction = direction.add(0.0, vertical, 0.0);
 
-            pos = pos.add(direction.multiply(FreecamState.INSTANCE.speed * deltaSeconds));
+            pos = pos.add(direction.scale(FreecamState.INSTANCE.speed * deltaSeconds));
             FreecamState.INSTANCE.position = pos;
         }
 

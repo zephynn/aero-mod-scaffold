@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "dev.finn.aero.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "injectors": {
     "defaultRequire": 1
   },
@@ -13,6 +13,6 @@
     "EntityRendererMixin",
     "InputAccessor",
     "KeyboardInputMixin",
-    "LightmapTextureManagerMixin"
+    "LightmapExtractorMixin"
   ]
 }
