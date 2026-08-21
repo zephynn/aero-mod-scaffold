@@ -1,14 +1,21 @@
 package dev.finn.aero.client
 
+import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.gui.ClickGuiScreen
 import dev.finn.aero.module.ModuleManager
+import dev.finn.aero.module.impl.DeathWaypoint
 import dev.finn.aero.module.impl.Freecam
 import dev.finn.aero.module.impl.Fullbright
 import dev.finn.aero.module.impl.Sprint
+import dev.finn.aero.module.impl.esp.ChestEsp
+import dev.finn.aero.module.impl.esp.EntityEsp
+import dev.finn.aero.module.impl.esp.PlayerEsp
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.minecraft.client.MinecraftClient
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -36,6 +43,10 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(Sprint())
         ModuleManager.register(Fullbright())
         ModuleManager.register(Freecam())
+        ModuleManager.register(EntityEsp())
+        ModuleManager.register(PlayerEsp())
+        ModuleManager.register(ChestEsp())
+        ModuleManager.register(DeathWaypoint())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
@@ -57,22 +68,31 @@ object AeroClient : ClientModInitializer {
             ConfigManager.save()
         }
 
+        // 2D HUD overlays (waypoint compass, etc.) and 3D world-space
+        // overlays (ESP boxes, waypoint beam) are separate Fabric API
+        // events with different coordinate spaces -- fan both out through
+        // ModuleManager the same way tick/keybinds already are.
+        HudRenderCallback.EVENT.register { context, tickCounter ->
+            ModuleManager.onHudRender(context, tickCounter)
+        }
+        WorldRenderEvents.AFTER_ENTITIES.register { context ->
+            ModuleManager.onWorldRender(context)
+        }
+
         LOGGER.info("Aero loaded with {} module(s).", ModuleManager.all().size)
     }
-
-    /** Opens the ClickGUI. Separate from module keybinds so it can never collide with one. */
-    private const val GUI_KEYBIND = org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
 
     private val wasDown = HashMap<Int, Boolean>()
 
     private fun pollKeybinds(client: MinecraftClient) {
         val window = client.window ?: return
 
-        val guiDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle, GUI_KEYBIND) == org.lwjgl.glfw.GLFW.GLFW_PRESS
-        if (guiDown && wasDown[GUI_KEYBIND] != true && client.currentScreen == null) {
+        val guiKey = ClientSettings.guiKeybind
+        val guiDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle, guiKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS
+        if (guiDown && wasDown[guiKey] != true && client.currentScreen == null) {
             client.setScreen(ClickGuiScreen())
         }
-        wasDown[GUI_KEYBIND] = guiDown
+        wasDown[guiKey] = guiDown
 
         // Don't let module keybinds fire while any screen (including our own
         // GUI, or an unrelated one like the inventory) is open.

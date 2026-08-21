@@ -1,6 +1,7 @@
 package dev.finn.aero.module
 
 import dev.finn.aero.setting.Setting
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.render.RenderTickCounter
@@ -32,6 +33,9 @@ abstract class Module(
 
     var enabled: Boolean = false
         private set
+
+    /** Whether this module is surfaced in the Radial Menu / Command Bar as a pinned item. */
+    var pinned: Boolean = false
 
     protected val mc: MinecraftClient get() = MinecraftClient.getInstance()
 
@@ -68,6 +72,9 @@ abstract class Module(
     /** Called every client tick (~20/s) while enabled. */
     open fun onTick() {}
 
-    /** Called every rendered frame while enabled (HUD/world overlays). */
+    /** Called every rendered frame while enabled, for 2D HUD overlays (drawn over the whole screen). */
     open fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {}
+
+    /** Called every rendered frame while enabled, for 3D world-space overlays (ESP boxes, waypoints). */
+    open fun onWorldRender(context: WorldRenderContext) {}
 }

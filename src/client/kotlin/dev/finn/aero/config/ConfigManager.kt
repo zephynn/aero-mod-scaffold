@@ -36,6 +36,7 @@ object ConfigManager {
             val moduleJson = JsonObject()
             moduleJson.addProperty("enabled", module.enabled)
             moduleJson.addProperty("keybind", module.keybind)
+            moduleJson.addProperty("pinned", module.pinned)
 
             val settingsJson = JsonObject()
             for (setting in module.settings) {
@@ -54,6 +55,15 @@ object ConfigManager {
 
         root.add("modules", modulesJson)
 
+        val themeJson = JsonObject()
+        themeJson.addProperty("accent", Theme.accent)
+        root.add("theme", themeJson)
+
+        val clientJson = JsonObject()
+        clientJson.addProperty("guiKeybind", ClientSettings.guiKeybind)
+        clientJson.addProperty("reducedMotion", ClientSettings.reducedMotion)
+        root.add("client", clientJson)
+
         try {
             Files.createDirectories(configPath.parent)
             Files.writeString(configPath, gson.toJson(root))
@@ -68,12 +78,23 @@ object ConfigManager {
         try {
             val text = Files.readString(configPath)
             val root = JsonParser.parseString(text).asJsonObject
+
+            root.getAsJsonObject("theme")?.let { themeJson ->
+                themeJson.get("accent")?.asInt?.let { Theme.accent = it }
+            }
+
+            root.getAsJsonObject("client")?.let { clientJson ->
+                clientJson.get("guiKeybind")?.asInt?.let { ClientSettings.guiKeybind = it }
+                clientJson.get("reducedMotion")?.asBoolean?.let { ClientSettings.reducedMotion = it }
+            }
+
             val modulesJson = root.getAsJsonObject("modules") ?: return
 
             for (module in ModuleManager.all()) {
                 val moduleJson = modulesJson.getAsJsonObject(module.name) ?: continue
 
                 moduleJson.get("keybind")?.asInt?.let { module.keybind = it }
+                moduleJson.get("pinned")?.asBoolean?.let { module.pinned = it }
 
                 val settingsJson = moduleJson.getAsJsonObject("settings")
                 if (settingsJson != null) {

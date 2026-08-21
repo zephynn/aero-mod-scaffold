@@ -1,5 +1,9 @@
 package dev.finn.aero.module
 
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
+import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.render.RenderTickCounter
+
 /**
  * Central registry of every module. Owns lookup by name/category and
  * fans out the tick/keybind hooks to whichever modules are enabled.
@@ -30,6 +34,20 @@ object ModuleManager {
     fun onKeyPressed(keyCode: Int) {
         for (module in modules) {
             if (module.keybind == keyCode) module.toggle()
+        }
+    }
+
+    /** Called from HudRenderCallback, once per frame. */
+    fun onHudRender(context: DrawContext, tickCounter: RenderTickCounter) {
+        for (module in modules) {
+            if (module.enabled) module.onRender(context, tickCounter)
+        }
+    }
+
+    /** Called from WorldRenderEvents.AFTER_ENTITIES, once per frame. */
+    fun onWorldRender(context: WorldRenderContext) {
+        for (module in modules) {
+            if (module.enabled) module.onWorldRender(context)
         }
     }
 }
