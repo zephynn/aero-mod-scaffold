@@ -116,7 +116,7 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
         val mouseY = click.y().toInt()
 
         if (mouseX in guiX..(guiX + 16) && mouseY in guiY..(guiY + CHROME_HEIGHT)) {
-            minecraft?.gui?.setScreen(ClickGuiScreen())
+            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
 
@@ -179,14 +179,14 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
                     return true
                 }
                 GLFW.GLFW_KEY_ESCAPE -> {
-                    minecraft?.gui?.setScreen(ClickGuiScreen())
+                    minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
                     return true
                 }
             }
             return true
         }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-            minecraft?.gui?.setScreen(ClickGuiScreen())
+            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
         return super.keyPressed(input)

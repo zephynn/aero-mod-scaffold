@@ -12,11 +12,16 @@ object ClientSettings {
     const val DEFAULT_GUI_KEYBIND = GLFW.GLFW_KEY_RIGHT_SHIFT
     const val DEFAULT_NOTIFICATION_POSITION = "Top Left"
     const val DEFAULT_NOTIFICATION_DURATION_MS = 3000L
+    const val DEFAULT_GUI_STYLE = "Accordion"
 
     val NOTIFICATION_POSITIONS = listOf("Top Left", "Top Right", "Bottom Left", "Bottom Right")
+    val GUI_STYLES = listOf("Accordion", "Meteor")
 
     /** Key that opens the ClickGUI. Separate from module keybinds so it can never collide with one. */
     var guiKeybind: Int = DEFAULT_GUI_KEYBIND
+
+    /** Which ClickGUI layout to open. One of [GUI_STYLES] -- "Accordion" is the original expand-in-place layout, "Meteor" is the rail+list+side-panel layout. */
+    var guiStyle: String = DEFAULT_GUI_STYLE
 
     /** When true, screens should apply state changes instantly instead of easing toward them. */
     var reducedMotion: Boolean = false
@@ -29,6 +34,7 @@ object ClientSettings {
 
     fun reset() {
         guiKeybind = DEFAULT_GUI_KEYBIND
+        guiStyle = DEFAULT_GUI_STYLE
         reducedMotion = false
         notificationPosition = DEFAULT_NOTIFICATION_POSITION
         notificationDurationMs = DEFAULT_NOTIFICATION_DURATION_MS

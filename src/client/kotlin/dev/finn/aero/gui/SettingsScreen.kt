@@ -25,7 +25,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
 
     private companion object {
         const val WIDTH = 220
-        const val HEIGHT = 208
+        const val HEIGHT = 228
         const val CHROME_HEIGHT = 20
         const val ROW_HEIGHT = 20
 
@@ -98,6 +98,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         y = renderAccentSection(context, y, mouseX, mouseY)
         y += 6
         y = renderKeybindRow(context, y, mouseX, mouseY)
+        y = renderGuiStyleRow(context, y, mouseX, mouseY)
         y = renderReducedMotionRow(context, y, mouseX, mouseY)
         y += 6
         y = renderNotificationPositionRow(context, y, mouseX, mouseY)
@@ -185,6 +186,21 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         val chipY = y + 2
         fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
         text(context, label, chipX + 5, chipY + 2, if (rebindingGuiKey) accent else COLOR_TEXT)
+
+        return y + ROW_HEIGHT
+    }
+
+    private fun renderGuiStyleRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+        val x = guiX + 12
+        val w = WIDTH - 24
+        text(context, "GUI STYLE", x, y + 5, COLOR_TEXT_DIM)
+
+        val label = ClientSettings.guiStyle
+        val chipW = font.width(label) + 10
+        val chipX = x + w - chipW
+        val chipY = y + 2
+        fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
+        text(context, label, chipX + 5, chipY + 2, COLOR_TEXT)
 
         return y + ROW_HEIGHT
     }
@@ -294,7 +310,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         }
 
         if (mouseX in guiX.toDouble()..(guiX + 16).toDouble() && mouseY in guiY.toDouble()..(guiY + CHROME_HEIGHT).toDouble()) {
-            minecraft?.gui?.setScreen(ClickGuiScreen())
+            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
 
@@ -327,6 +343,20 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         val chipY = y + 2
         if (mouseX in chipX.toDouble()..(chipX + chipW).toDouble() && mouseY in chipY.toDouble()..(chipY + 12).toDouble()) {
             rebindingGuiKey = true
+            return true
+        }
+        y += ROW_HEIGHT
+
+        // GUI style chip -- cycles Accordion <-> Meteor, same click-anywhere-on-chip pattern as the keybind chip above.
+        val styleLabel = ClientSettings.guiStyle
+        val styleChipW = font.width(styleLabel) + 10
+        val styleChipX = x + w - styleChipW
+        val styleChipY = y + 2
+        if (mouseX in styleChipX.toDouble()..(styleChipX + styleChipW).toDouble() && mouseY in styleChipY.toDouble()..(styleChipY + 12).toDouble()) {
+            val styles = ClientSettings.GUI_STYLES
+            val i = styles.indexOf(ClientSettings.guiStyle)
+            ClientSettings.guiStyle = styles[(i + 1) % styles.size]
+            ConfigManager.save()
             return true
         }
         y += ROW_HEIGHT

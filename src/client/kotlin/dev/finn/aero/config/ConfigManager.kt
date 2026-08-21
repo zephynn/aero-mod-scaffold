@@ -61,6 +61,7 @@ object ConfigManager {
 
         val clientJson = JsonObject()
         clientJson.addProperty("guiKeybind", ClientSettings.guiKeybind)
+        clientJson.addProperty("guiStyle", ClientSettings.guiStyle)
         clientJson.addProperty("reducedMotion", ClientSettings.reducedMotion)
         clientJson.addProperty("notificationPosition", ClientSettings.notificationPosition)
         clientJson.addProperty("notificationDurationMs", ClientSettings.notificationDurationMs)
@@ -93,6 +94,7 @@ object ConfigManager {
 
             root.getAsJsonObject("client")?.let { clientJson ->
                 clientJson.get("guiKeybind")?.asInt?.let { ClientSettings.guiKeybind = it }
+                clientJson.get("guiStyle")?.asString?.let { ClientSettings.guiStyle = it }
                 clientJson.get("reducedMotion")?.asBoolean?.let { ClientSettings.reducedMotion = it }
                 clientJson.get("notificationPosition")?.asString?.let { ClientSettings.notificationPosition = it }
                 clientJson.get("notificationDurationMs")?.asLong?.let { ClientSettings.notificationDurationMs = it }
