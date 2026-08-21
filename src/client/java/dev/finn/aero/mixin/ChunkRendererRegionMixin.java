@@ -1,10 +1,10 @@
 package dev.finn.aero.mixin;
 
 import dev.finn.aero.module.impl.xray.XrayState;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.render.chunk.ChunkRendererRegion;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.renderer.chunk.RenderSectionRegion;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * changing its target block set has zero effect until whoever flips
  * XrayState.active also forces a chunk rebuild (see XrayModule / XrayState).
  */
-@Mixin(ChunkRendererRegion.class)
+@Mixin(RenderSectionRegion.class)
 public class ChunkRendererRegionMixin {
     @Inject(method = "getBlockState", at = @At("RETURN"), cancellable = true)
     private void aero$xrayCull(BlockPos pos, CallbackInfoReturnable<BlockState> cir) {
@@ -33,7 +33,7 @@ public class ChunkRendererRegionMixin {
         // scaling per-quad vertex alpha, so the real block still meshes
         // normally and can be rendered translucent.
         if (XrayState.INSTANCE.isActive() && XrayState.INSTANCE.getTerrainOpacity() <= 0f && !XrayState.INSTANCE.isTarget(real)) {
-            cir.setReturnValue(Blocks.AIR.getDefaultState());
+            cir.setReturnValue(Blocks.AIR.defaultBlockState());
         }
     }
 }

@@ -1,7 +1,7 @@
 package dev.finn.aero.mixin;
 
 import dev.finn.aero.module.impl.FullbrightState;
-import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.renderer.LightTexture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -22,11 +22,11 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * multiplies out to zero no matter how high gamma goes, so it could never
  * have worked for this shader.
  */
-@Mixin(LightmapTextureManager.class)
+@Mixin(LightTexture.class)
 public abstract class LightmapTextureManagerMixin {
 
     @ModifyArg(
-        method = "update(F)V",
+        method = "updateLightTexture(F)V",
         at = @At(
             value = "INVOKE",
             target = "Lcom/mojang/blaze3d/buffers/Std140Builder;putFloat(F)Lcom/mojang/blaze3d/buffers/Std140Builder;",

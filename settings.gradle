@@ -7,6 +7,17 @@ pluginManagement {
 		mavenCentral()
 		gradlePluginPortal()
 	}
+
+	// Loom publishes the no-remap plugin id (net.fabricmc.fabric-loom) inside the
+	// fabric-loom jar but doesn't publish a standalone plugin marker artifact for
+	// it, so map the id onto the module explicitly.
+	resolutionStrategy {
+		eachPlugin {
+			if (requested.id.id == 'net.fabricmc.fabric-loom') {
+				useModule("net.fabricmc:fabric-loom:${requested.version}")
+			}
+		}
+	}
 }
 
 // Should match your modid

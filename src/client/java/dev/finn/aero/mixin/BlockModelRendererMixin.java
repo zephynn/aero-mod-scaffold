@@ -1,10 +1,10 @@
 package dev.finn.aero.mixin;
 
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.finn.aero.module.impl.xray.AlphaScalingVertexConsumer;
 import dev.finn.aero.module.impl.xray.XrayState;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.block.BlockModelRenderer;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
+import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -21,20 +21,20 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * never even runs for those blocks; 1 is fully opaque, so skip wrapping
  * entirely to avoid any overhead on the common case).
  */
-@Mixin(BlockModelRenderer.class)
+@Mixin(ModelBlockRenderer.class)
 public class BlockModelRendererMixin {
     @ModifyVariable(
-        method = "render(Lnet/minecraft/world/BlockRenderView;Ljava/util/List;Lnet/minecraft/block/BlockState;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;ZI)V",
+        method = "tesselateBlock(Lnet/minecraft/world/level/BlockAndTintGetter;Ljava/util/List;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;ZI)V",
         at = @At("HEAD"),
         argsOnly = true
     )
     private VertexConsumer aero$wrapForOpacity(
         VertexConsumer consumer,
-        net.minecraft.world.BlockRenderView world,
-        java.util.List<net.minecraft.client.render.model.BlockModelPart> parts,
+        net.minecraft.world.level.BlockAndTintGetter world,
+        java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> parts,
         BlockState state,
-        net.minecraft.util.math.BlockPos pos,
-        net.minecraft.client.util.math.MatrixStack matrices,
+        net.minecraft.core.BlockPos pos,
+        com.mojang.blaze3d.vertex.PoseStack matrices,
         VertexConsumer originalConsumer,
         boolean cull,
         int overlay

@@ -1,9 +1,9 @@
 package dev.finn.aero.mixin;
 
 import dev.finn.aero.module.impl.FreecamState;
-import net.minecraft.client.input.KeyboardInput;
-import net.minecraft.util.PlayerInput;
-import net.minecraft.util.math.Vec2f;
+import net.minecraft.client.player.KeyboardInput;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.Vec2;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,8 +21,8 @@ public abstract class KeyboardInputMixin {
     private void aero$cancelMovementWhileFreecam(CallbackInfo ci) {
         if (FreecamState.INSTANCE.active) {
             InputAccessor self = (InputAccessor) (Object) this;
-            self.aero$setPlayerInput(PlayerInput.DEFAULT);
-            self.aero$setMovementVector(Vec2f.ZERO);
+            self.aero$setPlayerInput(Input.EMPTY);
+            self.aero$setMovementVector(Vec2.ZERO);
         }
     }
 }

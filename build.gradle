@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'org.jetbrains.kotlin.jvm' version '2.4.10'
 	id 'maven-publish'
 }
@@ -23,15 +23,16 @@ loom {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	// Minecraft 26.1+ ships unobfuscated, so there are no mappings to apply --
+	// Loom uses Mojang's own names straight out of the jar.
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	// Fabric Language Kotlin -- lets our entrypoints/classes be written in
 	// Kotlin and provides the Kotlin stdlib/coroutines/serialization at runtime.
-	modImplementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+	implementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
 }
 
 // Loom's own default sponge-mixin (0.15.4) is missing IAdviceProvider,
@@ -58,12 +59,12 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 25
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
 	compilerOptions {
-		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
 	}
 }
 
@@ -73,8 +74,8 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {
@@ -86,17 +87,17 @@ jar {
 	}
 }
 
-// Deploy the built mod jar straight into the "1.21.11" Prism Launcher
+// Deploy the built mod jar straight into the "26.2" Prism Launcher
 // instance's mods folder, so `./gradlew build` (or an IDE build) is enough
 // to pick the new jar up next time that instance is launched.
-def prismModsDir = file("/home/zephyn/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/1.21.11/minecraft/mods")
+def prismModsDir = file("/home/zephyn/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/26.2/minecraft/mods")
 
 tasks.register("deployToPrism", Copy) {
 	group = "aero"
-	description = "Copies the built mod jar into the Prism Launcher 1.21.11 instance's mods folder."
+	description = "Copies the built mod jar into the Prism Launcher 26.2 instance's mods folder."
 
-	dependsOn remapJar
-	from(remapJar.archiveFile)
+	dependsOn jar
+	from(jar.archiveFile)
 	into(prismModsDir)
 
 	doFirst {

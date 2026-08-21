@@ -1,9 +1,9 @@
 package dev.finn.aero.mixin;
 
 import dev.finn.aero.module.impl.AttributeSwapState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,19 +28,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * genuinely did, in the same sequence a very fast manual player or an
  * OS-level macro could already produce.
  */
-@Mixin(MinecraftClient.class)
+@Mixin(Minecraft.class)
 public class MinecraftClientAttackMixin {
     @Unique
     private boolean aero$didSwap = false;
 
-    @Inject(method = "doAttack", at = @At("HEAD"))
+    @Inject(method = "startAttack", at = @At("HEAD"))
     private void aero$beforeAttack(CallbackInfoReturnable<Boolean> cir) {
         aero$didSwap = false;
         if (!AttributeSwapState.INSTANCE.getActive()) return;
 
-        MinecraftClient client = (MinecraftClient) (Object) this;
-        ClientPlayerEntity player = client.player;
-        if (player == null || client.getNetworkHandler() == null) return;
+        Minecraft client = (Minecraft) (Object) this;
+        LocalPlayer player = client.player;
+        if (player == null || client.getConnection() == null) return;
 
         int primary = AttributeSwapState.INSTANCE.getPrimarySlot();
         int secondary = AttributeSwapState.INSTANCE.getSecondarySlot();
@@ -50,11 +50,11 @@ public class MinecraftClientAttackMixin {
         if (current == secondary) return;
 
         player.getInventory().setSelectedSlot(secondary);
-        client.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(secondary));
+        client.getConnection().send(new ServerboundSetCarriedItemPacket(secondary));
         aero$didSwap = true;
     }
 
-    @Inject(method = "doAttack", at = @At("RETURN"))
+    @Inject(method = "startAttack", at = @At("RETURN"))
     private void aero$afterAttack(CallbackInfoReturnable<Boolean> cir) {
         if (!aero$didSwap || !AttributeSwapState.INSTANCE.getSwapBack()) {
             aero$didSwap = false;
@@ -62,12 +62,12 @@ public class MinecraftClientAttackMixin {
         }
         aero$didSwap = false;
 
-        MinecraftClient client = (MinecraftClient) (Object) this;
-        ClientPlayerEntity player = client.player;
-        if (player == null || client.getNetworkHandler() == null) return;
+        Minecraft client = (Minecraft) (Object) this;
+        LocalPlayer player = client.player;
+        if (player == null || client.getConnection() == null) return;
 
         int primary = AttributeSwapState.INSTANCE.getPrimarySlot();
         player.getInventory().setSelectedSlot(primary);
-        client.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(primary));
+        client.getConnection().send(new ServerboundSetCarriedItemPacket(primary));
     }
 }
