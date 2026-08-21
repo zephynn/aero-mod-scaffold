@@ -1,7 +1,7 @@
 package dev.finn.aero.module.impl.xray
 
-import net.minecraft.block.Block
-import net.minecraft.block.Blocks
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
 
 /**
  * Fixed block sets for X-Ray's "Ores" and "Base Finder" modes. Field names

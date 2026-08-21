@@ -4,11 +4,11 @@ import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.config.Theme
 import dev.finn.aero.setting.ColorSetting
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.input.KeyInput
-import net.minecraft.text.Text
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 
 /**
@@ -21,7 +21,7 @@ import org.lwjgl.glfw.GLFW
  * separate, smaller implementation rather than sharing a base class --
  * there's not enough shared behaviour yet to be worth the abstraction.
  */
-class SettingsScreen : Screen(Text.literal("Aero Settings")) {
+class SettingsScreen : Screen(Component.literal("Aero Settings")) {
 
     private companion object {
         const val WIDTH = 220
@@ -79,7 +79,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         super.close()
     }
 
-    override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
         if (windowAnim <= 0.001f && closing) {
             client?.setScreen(null)
@@ -129,14 +129,14 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         }
     }
 
-    private fun renderChrome(context: DrawContext, gy: Int, mouseX: Int, mouseY: Int) {
+    private fun renderChrome(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
         fill(context, guiX, gy, guiX + WIDTH, gy + CHROME_HEIGHT, colorChrome)
         val backHovered = mouseX in guiX..(guiX + 16) && mouseY in gy..(gy + CHROME_HEIGHT)
         text(context, "‹", guiX + 7, gy + 6, if (backHovered) accent else COLOR_TEXT_DIM)
         text(context, "SETTINGS", guiX + 18, gy + 6, COLOR_TEXT_DIM)
     }
 
-    private fun renderAccentSection(context: DrawContext, startY: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderAccentSection(context: GuiGraphicsExtractor, startY: Int, mouseX: Int, mouseY: Int): Int {
         var y = startY
         val x = guiX + 12
         text(context, "ACCENT", x, y, COLOR_TEXT_FAINT)
@@ -174,13 +174,13 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + SWATCH_SIZE + 8
     }
 
-    private fun renderKeybindRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderKeybindRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "OPEN CLICKGUI", x, y + 5, COLOR_TEXT_DIM)
 
         val label = if (rebindingGuiKey) "..." else keyName(ClientSettings.guiKeybind)
-        val chipW = textRenderer.getWidth(label) + 10
+        val chipW = textRenderer.width(label) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
@@ -189,7 +189,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderReducedMotionRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderReducedMotionRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "REDUCED MOTION", x, y + 5, COLOR_TEXT_DIM)
@@ -197,12 +197,12 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderNotificationPositionRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderNotificationPositionRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "NOTIFICATIONS", x, y + 5, COLOR_TEXT_FAINT)
         val label = ClientSettings.notificationPosition
-        val chipW = textRenderer.getWidth(label) + 10
+        val chipW = textRenderer.width(label) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
@@ -210,12 +210,12 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderNotificationDurationRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderNotificationDurationRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "DURATION", x, y + 5, COLOR_TEXT_DIM)
         val label = "${ClientSettings.notificationDurationMs / 1000.0}s"
-        text(context, label, x + w - textRenderer.getWidth(label) - 24, y + 5, COLOR_TEXT)
+        text(context, label, x + w - textRenderer.width(label) - 24, y + 5, COLOR_TEXT)
 
         val minusX = x + w - 20
         val plusX = x + w - 8
@@ -224,7 +224,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderResetButton(context: DrawContext, y: Int, mouseX: Int, mouseY: Int) {
+    private fun renderResetButton(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int) {
         val x = guiX + 12
         val w = WIDTH - 24
         val h = 16
@@ -232,27 +232,27 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         fill(context, x, y, x + w, y + h, colorFieldBg)
         if (hAnim > 0.02f) fill(context, x, y, x + w, y + h, scaleAlpha(0x20FFFFFF.toInt(), hAnim))
         val label = "Reset to defaults"
-        text(context, label, x + (w - textRenderer.getWidth(label)) / 2, y + 4, COLOR_TEXT_DIM)
+        text(context, label, x + (w - textRenderer.width(label)) / 2, y + 4, COLOR_TEXT_DIM)
     }
 
     // --- helpers -------------------------------------------------------------
 
-    private fun fill(context: DrawContext, x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
+    private fun fill(context: GuiGraphicsExtractor, x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
         context.fill(x0, y0, x1, y1, scaleAlpha(color, easeOutCubic(windowAnim)))
     }
 
-    private fun text(context: DrawContext, str: String, x: Int, y: Int, color: Int) {
-        context.drawTextWithShadow(textRenderer, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)))
+    private fun text(context: GuiGraphicsExtractor, str: String, x: Int, y: Int, color: Int) {
+        context.text(textRenderer, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)), true)
     }
 
-    private fun drawBorder(context: DrawContext, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
         fill(context, x, y, x + w, y + 1, color)
         fill(context, x, y + h - 1, x + w, y + h, color)
         fill(context, x, y, x + 1, y + h, color)
         fill(context, x + w - 1, y, x + w, y + h, color)
     }
 
-    private fun drawToggle(context: DrawContext, x: Int, y: Int, w: Int, h: Int, anim: Float) {
+    private fun drawToggle(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, anim: Float) {
         fill(context, x, y, x + w, y + h, lerpColor(COLOR_TRACK_OFF, accent, anim))
         val knobD = h - 4
         val knobX = x + 2 + ((w - knobD - 4) * anim).toInt()
@@ -275,7 +275,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
     // --- Input ---------------------------------------------------------------
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         if (closing) return false
         val mouseX = click.x()
         val mouseY = click.y()
@@ -322,7 +322,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
         val w = WIDTH - 24
         val kbLabel = keyName(ClientSettings.guiKeybind)
-        val chipW = textRenderer.getWidth(kbLabel) + 10
+        val chipW = textRenderer.width(kbLabel) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         if (mouseX in chipX.toDouble()..(chipX + chipW).toDouble() && mouseY in chipY.toDouble()..(chipY + 12).toDouble()) {
@@ -340,7 +340,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
         // Notification position chip.
         val posLabel = ClientSettings.notificationPosition
-        val posChipW = textRenderer.getWidth(posLabel) + 10
+        val posChipW = textRenderer.width(posLabel) + 10
         val posChipX = x + w - posChipW
         val posChipY = y + 2
         if (mouseX in posChipX.toDouble()..(posChipX + posChipW).toDouble() && mouseY in posChipY.toDouble()..(posChipY + 12).toDouble()) {
@@ -378,12 +378,12 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return super.mouseClicked(click, doubled)
     }
 
-    override fun mouseDragged(click: Click, deltaX: Double, deltaY: Double): Boolean {
+    override fun mouseDragged(click: MouseButtonEvent, deltaX: Double, deltaY: Double): Boolean {
         if (colorPicker.isOpen && colorPicker.mouseDragged(click.x(), click.y())) return true
         return super.mouseDragged(click, deltaX, deltaY)
     }
 
-    override fun mouseReleased(click: Click): Boolean {
+    override fun mouseReleased(click: MouseButtonEvent): Boolean {
         if (colorPicker.mouseReleased()) {
             ConfigManager.save()
             return true
@@ -391,7 +391,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return super.mouseReleased(click)
     }
 
-    override fun keyPressed(input: KeyInput): Boolean {
+    override fun keyPressed(input: KeyEvent): Boolean {
         if (rebindingGuiKey) {
             ClientSettings.guiKeybind = input.key()
             rebindingGuiKey = false

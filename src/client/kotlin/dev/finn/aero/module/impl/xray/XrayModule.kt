@@ -12,11 +12,11 @@ import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.SliderSetting
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
-import net.minecraft.block.Block
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.RenderTickCounter
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Block
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.DeltaTracker
+import net.minecraft.world.phys.AABB
+import net.minecraft.core.BlockPos
 
 /** Fixed alpha used for non-target terrain when [XrayModule]'s "Terrain Opacity" toggle is on. */
 private const val TERRAIN_VISIBLE_OPACITY = 0.35f
@@ -201,13 +201,13 @@ class XrayModule : Module(
             if (style != "Outline") {
                 val quadBuffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_QUADS)
                 for (pos in cachedIndividual) {
-                    EspRendering.drawSolidBox(matrices, quadBuffer, camPos, Box(pos), color)
+                    EspRendering.drawSolidBox(matrices, quadBuffer, camPos, AABB(pos), color)
                 }
             }
             if (style != "Solid") {
                 val lineBuffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_LINES)
                 for (pos in cachedIndividual) {
-                    EspRendering.drawBox(matrices, lineBuffer, camPos, Box(pos), color)
+                    EspRendering.drawBox(matrices, lineBuffer, camPos, AABB(pos), color)
                 }
             }
         }
@@ -220,7 +220,7 @@ class XrayModule : Module(
         }
     }
 
-    override fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {
+    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (mode.value == "Base Finder" && showClusters.value && cachedClusters.isNotEmpty()) {
             renderClusterLabels(context)
         }
@@ -239,12 +239,12 @@ class XrayModule : Module(
         val color = highlightColor.value
 
         for (pos in cachedIndividual) {
-            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, Box(pos).center) ?: continue
+            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, AABB(pos).center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }
 
-    private fun renderClusterLabels(context: DrawContext) {
+    private fun renderClusterLabels(context: GuiGraphicsExtractor) {
         val camera = mc.gameRenderer.camera
         val camPos = camera.cameraPos
         val fov = mc.options.fov.value.toFloat()
@@ -254,8 +254,8 @@ class XrayModule : Module(
         for (cluster in cachedClusters) {
             val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, cluster.center) ?: continue
             val label = "Base (${cluster.size})"
-            val width = mc.textRenderer.getWidth(label)
-            context.drawTextWithShadow(mc.textRenderer, label, point.first - width / 2, point.second, highlightColor.value)
+            val width = mc.textRenderer.width(label)
+            context.text(mc.textRenderer, label, point.first - width / 2, point.second, highlightColor.value, true)
         }
     }
 }

@@ -4,11 +4,11 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.SliderSetting
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.RenderTickCounter
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.DeltaTracker
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
 
 /**
  * Shared core for entity-based ESP. Rather than drawing our own bounding-box
@@ -37,7 +37,7 @@ abstract class EspModule(
     private val tracer = register(BoolSetting("Tracer", "Draw a line from your view to each target.", true))
 
     /** Every currently-visible target paired with the ARGB colour it should be outlined in, within [range] blocks of [self]. */
-    protected abstract fun collectTargets(world: ClientWorld, self: PlayerEntity, range: Double): List<Pair<Entity, Int>>
+    protected abstract fun collectTargets(world: ClientLevel, self: Player, range: Double): List<Pair<Entity, Int>>
 
     /** Entities we personally applied a highlight to last tick, so we can clear exactly those and no one else's. */
     private var highlighted: Set<Entity> = emptySet()
@@ -48,7 +48,7 @@ abstract class EspModule(
     }
 
     override fun onTick() {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = if (outline.value) collectTargets(world, self, range.value) else emptyList()
@@ -63,9 +63,9 @@ abstract class EspModule(
         highlighted = targetSet
     }
 
-    override fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {
+    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!tracer.value) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = collectTargets(world, self, range.value)
@@ -80,7 +80,7 @@ abstract class EspModule(
         val anchorY = screenH / 2
 
         for ((entity, color) in targets) {
-            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, entity.boundingBox.center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot, camera.xRot, fov, screenW, screenH, entity.bb.center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }

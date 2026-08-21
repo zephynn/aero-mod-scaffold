@@ -2,16 +2,16 @@ package dev.finn.aero.module.impl.esp
 
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.ModeSetting
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.entity.Entity
-import net.minecraft.entity.LivingEntity
-import net.minecraft.entity.mob.CreeperEntity
-import net.minecraft.entity.mob.EndermanEntity
-import net.minecraft.entity.mob.SkeletonEntity
-import net.minecraft.entity.mob.SpiderEntity
-import net.minecraft.entity.mob.ZombieEntity
-import net.minecraft.entity.passive.VillagerEntity
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.monster.Creeper
+import net.minecraft.world.entity.monster.EnderMan
+import net.minecraft.world.entity.monster.skeleton.Skeleton
+import net.minecraft.world.entity.monster.spider.Spider
+import net.minecraft.world.entity.monster.zombie.Zombie
+import net.minecraft.world.entity.npc.villager.Villager
+import net.minecraft.world.entity.player.Player
 
 /**
  * Outlines nearby non-player living entities (mobs, animals). Players get
@@ -38,20 +38,20 @@ class EntityEsp : EspModule(
     )
     private val overrideColor = register(ColorSetting("Override Color", "Outline colour for the mob type selected above.", 0xFFE74C3C.toInt()))
 
-    override fun collectTargets(world: ClientWorld, self: PlayerEntity, range: Double): List<Pair<Entity, Int>> =
+    override fun collectTargets(world: ClientLevel, self: Player, range: Double): List<Pair<Entity, Int>> =
         world.entities
-            .filter { it !== self && it is LivingEntity && it !is PlayerEntity && it.isAlive }
+            .filter { it !== self && it is LivingEntity && it !is Player && it.isAlive }
             .filter { self.entityPos.distanceTo(it.entityPos) <= range }
             .map { it to colorFor(it) }
 
     private fun colorFor(entity: Entity): Int {
         val matches = when (overrideType.value) {
-            "Zombie" -> entity is ZombieEntity
-            "Skeleton" -> entity is SkeletonEntity
-            "Creeper" -> entity is CreeperEntity
-            "Spider" -> entity is SpiderEntity
-            "Enderman" -> entity is EndermanEntity
-            "Villager" -> entity is VillagerEntity
+            "Zombie" -> entity is Zombie
+            "Skeleton" -> entity is Skeleton
+            "Creeper" -> entity is Creeper
+            "Spider" -> entity is Spider
+            "Enderman" -> entity is EnderMan
+            "Villager" -> entity is Villager
             else -> false
         }
         return if (matches) overrideColor.value else defaultColor.value

@@ -1,8 +1,8 @@
 package dev.finn.aero.module.impl.xray
 
-import net.minecraft.block.Block
-import net.minecraft.registry.Registries
-import net.minecraft.util.Identifier
+import net.minecraft.world.level.block.Block
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.Identifier
 
 /**
  * Persisted "Custom" mode block list. Kept as a small standalone object
@@ -22,16 +22,16 @@ object XrayCustomConfig {
     }
 
     fun blocks(): Set<Block> =
-        ids.mapNotNull { id -> Identifier.tryParse(id)?.let { Registries.BLOCK.get(it) } }.toSet()
+        ids.mapNotNull { id -> Identifier.tryParse(id)?.let { BuiltInRegistries.BLOCK.get(it) } }.toSet()
 
-    fun contains(block: Block): Boolean = Registries.BLOCK.getId(block).toString() in ids
+    fun contains(block: Block): Boolean = BuiltInRegistries.BLOCK.getId(block).toString() in ids
 
     fun add(block: Block) {
-        ids.add(Registries.BLOCK.getId(block).toString())
+        ids.add(BuiltInRegistries.BLOCK.getId(block).toString())
     }
 
     fun remove(block: Block) {
-        ids.remove(Registries.BLOCK.getId(block).toString())
+        ids.remove(BuiltInRegistries.BLOCK.getId(block).toString())
     }
 
     fun toggle(block: Block) {

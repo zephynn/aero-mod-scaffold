@@ -1,8 +1,8 @@
 package dev.finn.aero.module.impl.xray
 
-import net.minecraft.block.Block
-import net.minecraft.block.BlockState
-import net.minecraft.client.MinecraftClient
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.client.Minecraft
 
 /**
  * Small Kotlin singleton bridge between [ChunkRendererRegionMixin] (Java,
@@ -45,9 +45,9 @@ object XrayState {
      * rebuilds all chunks -- this is that method.
      */
     fun requestChunkReload() {
-        val client = MinecraftClient.getInstance()
+        val client = Minecraft.getInstance()
         client.execute {
-            client.worldRenderer.reload()
+            client.levelRenderer.reload()
         }
     }
 }

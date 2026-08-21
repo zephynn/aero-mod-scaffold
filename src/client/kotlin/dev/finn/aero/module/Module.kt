@@ -1,10 +1,10 @@
 package dev.finn.aero.module
 
 import dev.finn.aero.setting.Setting
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.RenderTickCounter
+import net.fabricmc.fabric.api.client.rendering.v1.level.WorldRenderContext
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.DeltaTracker
 import org.lwjgl.glfw.GLFW
 
 enum class Category {
@@ -37,7 +37,7 @@ abstract class Module(
     /** Whether this module is surfaced in the Radial Menu / Command Bar as a pinned item. */
     var pinned: Boolean = false
 
-    protected val mc: MinecraftClient get() = MinecraftClient.getInstance()
+    protected val mc: Minecraft get() = Minecraft.getInstance()
 
     /** Ordered list of this module's settings, for both the GUI and config (de)serialization. */
     val settings: MutableList<Setting<*>> = mutableListOf()
@@ -73,7 +73,7 @@ abstract class Module(
     open fun onTick() {}
 
     /** Called every rendered frame while enabled, for 2D HUD overlays (drawn over the whole screen). */
-    open fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {}
+    open fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {}
 
     /** Called every rendered frame while enabled, for 3D world-space overlays (ESP boxes, waypoints). */
     open fun onWorldRender(context: WorldRenderContext) {}

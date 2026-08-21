@@ -5,19 +5,19 @@ import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.SliderSetting
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
-import net.minecraft.block.Blocks
-import net.minecraft.block.ChestBlock
-import net.minecraft.block.entity.ChestBlockEntity
-import net.minecraft.block.entity.EnderChestBlockEntity
-import net.minecraft.block.entity.ShulkerBoxBlockEntity
-import net.minecraft.block.enums.ChestType
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.RenderTickCounter
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.BlockPos
+import net.fabricmc.fabric.api.minecraft.rendering.v1.level.WorldRenderContext
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.ChestBlock
+import net.minecraft.world.level.block.entity.ChestBlockEntity
+import net.minecraft.world.level.block.entity.EnderChestBlockEntity
+import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity
+import net.minecraft.world.level.block.state.properties.ChestType
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.DeltaTracker
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.AABB
+import net.minecraft.core.BlockPos
 
 /**
  * Outlines nearby containers -- block-based, so it can't reuse the
@@ -43,34 +43,34 @@ class ChestEsp : Module(
     private val shulkerColor = register(ColorSetting("Shulker Color", "Outline colour for shulker boxes.", 0xFF9B59B6.toInt()))
 
     /**
-     * World.getBlockEntities() only ever turned up empty client-side (it's
+     * World.getGloballyRenderedBlockEntities() only ever turned up empty client-side (it's
      * populated for server ticking, not for the client's own book-keeping)
      * -- so instead this walks the same per-chunk block entity maps the
      * vanilla block-entity renderer itself uses, over just the chunks
      * within range.
      */
-    private fun collectTargets(world: ClientWorld, self: PlayerEntity, maxRange: Double): List<Pair<Box, Int>> {
+    private fun collectTargets(world: ClientLevel, self: Player, maxRange: Double): List<Pair<AABB, Int>> {
         val selfPos = self.entityPos
         val chestPositions = mutableMapOf<BlockPos, Int>()
-        val results = mutableListOf<Pair<Box, Int>>()
+        val results = mutableListOf<Pair<AABB, Int>>()
 
-        val centerChunkX = self.blockPos.x shr 4
-        val centerChunkZ = self.blockPos.z shr 4
+        val centerChunkX = self.blockPosition.x shr 4
+        val centerChunkZ = self.blockPosition.z shr 4
         val chunkRadius = (maxRange / 16.0).toInt() + 1
 
         for (cx in (centerChunkX - chunkRadius)..(centerChunkX + chunkRadius)) {
             for (cz in (centerChunkZ - chunkRadius)..(centerChunkZ + chunkRadius)) {
                 val chunk = world.getChunk(cx, cz) ?: continue
-                for ((pos, blockEntity) in chunk.blockEntities) {
-                    if (selfPos.distanceTo(Box(pos).center) > maxRange) continue
+                for ((pos, blockEntity) in chunk.globallyRenderedBlockEntities) {
+                    if (selfPos.distanceTo(AABB(pos).center) > maxRange) continue
 
                     when (blockEntity) {
                         is ChestBlockEntity -> {
                             val color = if (world.getBlockState(pos).block === Blocks.TRAPPED_CHEST) trappedColor.value else chestColor.value
-                            chestPositions[pos.toImmutable()] = color
+                            chestPositions[pos.immutable()] = color
                         }
-                        is EnderChestBlockEntity -> results.add(Box(pos) to enderColor.value)
-                        is ShulkerBoxBlockEntity -> results.add(Box(pos) to shulkerColor.value)
+                        is EnderChestBlockEntity -> results.add(AABB(pos) to enderColor.value)
+                        is ShulkerBoxBlockEntity -> results.add(AABB(pos) to shulkerColor.value)
                         else -> {}
                     }
                 }
@@ -84,7 +84,7 @@ class ChestEsp : Module(
         for ((pos, color) in chestPositions) {
             if (pos in merged) continue
             val state = world.getBlockState(pos)
-            val chestType = state.getOrEmpty(ChestBlock.CHEST_TYPE).orElse(ChestType.SINGLE)
+            val chestType = state.getOrEmpty(ChestBlock.TYPE).orElse(ChestType.SINGLE)
             val partner = if (chestType == ChestType.SINGLE) {
                 null
             } else {
@@ -95,10 +95,10 @@ class ChestEsp : Module(
             if (partner != null) {
                 merged.add(pos)
                 merged.add(partner)
-                results.add(Box(pos).union(Box(partner)) to color)
+                results.add(AABB(pos).minmax(AABB(partner)) to color)
             } else {
                 merged.add(pos)
-                results.add(Box(pos) to color)
+                results.add(AABB(pos) to color)
             }
         }
 
@@ -106,7 +106,7 @@ class ChestEsp : Module(
     }
 
     override fun onWorldRender(context: WorldRenderContext) {
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = collectTargets(world, self, range.value)
@@ -121,9 +121,9 @@ class ChestEsp : Module(
         }
     }
 
-    override fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {
+    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!tracer.value) return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = collectTargets(world, self, range.value)
@@ -138,7 +138,7 @@ class ChestEsp : Module(
         val anchorY = screenH / 2
 
         for ((box, color) in targets) {
-            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, box.center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot, camera.xRot, fov, screenW, screenH, box.center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }

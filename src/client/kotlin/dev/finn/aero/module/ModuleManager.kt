@@ -1,8 +1,8 @@
 package dev.finn.aero.module
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.RenderTickCounter
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.DeltaTracker
 
 /**
  * Central registry of every module. Owns lookup by name/category and
@@ -38,7 +38,7 @@ object ModuleManager {
     }
 
     /** Called from HudRenderCallback, once per frame. */
-    fun onHudRender(context: DrawContext, tickCounter: RenderTickCounter) {
+    fun onHudRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         for (module in modules) {
             if (module.enabled) module.onRender(context, tickCounter)
         }

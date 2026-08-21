@@ -1,12 +1,12 @@
 package dev.finn.aero.module.impl.xray
 
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.phys.AABB
+import net.minecraft.core.BlockPos
 
 /** One group of nearby Base-Finder blocks, plus the individual positions that made it up. */
 data class XrayCluster(val members: List<BlockPos>) {
-    val box: Box by lazy {
-        members.map { Box(it) }.reduce { a, b -> a.union(b) }
+    val box: AABB by lazy {
+        members.map { AABB(it) }.reduce { a, b -> a.minmax(b) }
     }
     val center: net.minecraft.util.math.Vec3d get() = box.center
     val size: Int get() = members.size
@@ -29,7 +29,7 @@ object XrayClustering {
 
         for (pos in positions) {
             val target = clusters.firstOrNull { cluster ->
-                cluster.any { member -> member.getSquaredDistance(pos) <= radiusSq }
+                cluster.any { member -> member.distSqr(pos) <= radiusSq }
             }
             if (target != null) {
                 target.add(pos)

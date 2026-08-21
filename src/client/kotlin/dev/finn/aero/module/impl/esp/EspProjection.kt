@@ -1,6 +1,6 @@
 package dev.finn.aero.module.impl.esp
 
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.phys.Vec3
 import kotlin.math.atan
 import kotlin.math.cos
 import kotlin.math.sin
@@ -23,13 +23,13 @@ import kotlin.math.tan
 object EspProjection {
     /** Null if [target] is behind the camera or too far outside the view frustum to matter. */
     fun project(
-        camPos: Vec3d,
+        camPos: Vec3,
         yawDegrees: Float,
         pitchDegrees: Float,
         fovDegrees: Float,
         screenW: Int,
         screenH: Int,
-        target: Vec3d,
+        target: Vec3,
     ): Pair<Int, Int>? {
         val dx = target.x - camPos.x
         val dy = target.y - camPos.y

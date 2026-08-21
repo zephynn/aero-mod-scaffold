@@ -1,6 +1,6 @@
 package dev.finn.aero.module.impl.xray
 
-import net.minecraft.client.render.VertexConsumer
+import com.mojang.blaze3d.vertex.VertexConsumer
 
 /**
  * Thin decorator around a real chunk-build [VertexConsumer] that scales

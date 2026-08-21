@@ -23,8 +23,8 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
-import net.minecraft.client.MinecraftClient
+import net.fabricmc.fabric.api.client.rendering.v1.level.WorldRenderEvents
+import net.minecraft.client.Minecraft
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -100,7 +100,7 @@ object AeroClient : ClientModInitializer {
 
     private val wasDown = HashMap<Int, Boolean>()
 
-    private fun pollKeybinds(client: MinecraftClient) {
+    private fun pollKeybinds(client: Minecraft) {
         val window = client.window ?: return
 
         val guiKey = ClientSettings.guiKeybind

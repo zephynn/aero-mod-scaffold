@@ -1,6 +1,6 @@
 package dev.finn.aero.module.impl
 
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.phys.Vec3
 
 /**
  * Bridge between Freecam.kt and the two client-side mixins that decouple
@@ -17,7 +17,7 @@ object FreecamState {
 
     /** World-space position the camera should render from, or null when inactive. */
     @JvmField
-    var position: Vec3d? = null
+    var position: Vec3? = null
 
     /** Blocks per second. CameraMixin reads this every frame, so changing it live is instant. */
     @JvmField

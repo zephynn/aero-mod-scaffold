@@ -3,10 +3,10 @@ package dev.finn.aero.module.impl.esp
 import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.platform.DepthTestFunction
 import dev.finn.aero.client.AeroClient
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.RenderLayers
-import net.minecraft.client.render.RenderSetup
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.renderer.rendertype.RenderType
+import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.rendertype.RenderSetup
 
 /**
  * A "lines" render layer with depth testing disabled, so ESP boxes/tracers
@@ -18,7 +18,7 @@ import net.minecraft.client.render.RenderSetup
  * There's no public API for "the LINES pipeline, but with depth off":
  * RenderPipelines only exposes the *finished* LINES/LINES_TRANSLUCENT
  * pipelines, not the RENDERTYPE_LINES_SNIPPET they're both built from, and
- * RenderLayer's constructor is private. Vanilla builds LINES_TRANSLUCENT as
+ * RenderType's constructor is private. Vanilla builds LINES_TRANSLUCENT as
  * exactly "the lines snippet plus one extra builder call"
  * (withDepthWrite(false)) -- this does the same thing, reflectively
  * borrowing that private snippet rather than re-declaring the vertex
@@ -30,7 +30,7 @@ import net.minecraft.client.render.RenderSetup
  * works, it just stops seeing through walls.
  */
 object EspRenderLayers {
-    val NO_DEPTH_LINES: RenderLayer by lazy { buildNoDepthLines() }
+    val NO_DEPTH_LINES: RenderType by lazy { buildNoDepthLines() }
 
     /**
      * Filled-quad no-depth layer for X-Ray's "Solid"/"Both" highlight
@@ -42,9 +42,9 @@ object EspRenderLayers {
      * DEBUG_QUADS's own settings into a Snippet, then builds a copy with
      * depth testing/writing turned off on top.
      */
-    val NO_DEPTH_QUADS: RenderLayer by lazy { buildNoDepthQuads() }
+    val NO_DEPTH_QUADS: RenderType by lazy { buildNoDepthQuads() }
 
-    private fun buildNoDepthLines(): RenderLayer {
+    private fun buildNoDepthLines(): RenderType {
         return try {
             val snippetField = RenderPipelines::class.java.getDeclaredField("RENDERTYPE_LINES_SNIPPET")
             snippetField.isAccessible = true
@@ -58,19 +58,19 @@ object EspRenderLayers {
 
             val renderSetup = RenderSetup.builder(pipeline).build()
 
-            val ctor = RenderLayer::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
+            val ctor = RenderType::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
             ctor.isAccessible = true
-            val layer = ctor.newInstance("aero_esp_lines_no_depth", renderSetup) as RenderLayer
+            val layer = ctor.newInstance("aero_esp_lines_no_depth", renderSetup) as RenderType
 
             AeroClient.LOGGER.info("Aero: built no-depth ESP line layer.")
             layer
         } catch (e: Exception) {
             AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP line layer, falling back to depth-tested lines (ESP won't show through walls).", e)
-            RenderLayers.lines()
+            RenderTypes.lines()
         }
     }
 
-    private fun buildNoDepthQuads(): RenderLayer {
+    private fun buildNoDepthQuads(): RenderType {
         return try {
             val base = RenderPipelines.DEBUG_QUADS
 
@@ -100,15 +100,15 @@ object EspRenderLayers {
 
             val renderSetup = RenderSetup.builder(pipeline).build()
 
-            val ctor = RenderLayer::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
+            val ctor = RenderType::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
             ctor.isAccessible = true
-            val layer = ctor.newInstance("aero_esp_quads_no_depth", renderSetup) as RenderLayer
+            val layer = ctor.newInstance("aero_esp_quads_no_depth", renderSetup) as RenderType
 
             AeroClient.LOGGER.info("Aero: built no-depth ESP quad layer.")
             layer
         } catch (e: Exception) {
             AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP quad layer, falling back to depth-tested filled box.", e)
-            RenderLayers.debugFilledBox()
+            RenderTypes.debugFilledBox()
         }
     }
 }

@@ -4,10 +4,10 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.SliderSetting
-import net.minecraft.entity.LivingEntity
-import net.minecraft.entity.mob.HostileEntity
-import net.minecraft.entity.passive.AnimalEntity
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.monster.Monster
+import net.minecraft.world.entity.animal.Animal
+import net.minecraft.world.entity.player.Player
 
 /**
  * Automatically faces and attacks the nearest valid target every tick the
@@ -38,7 +38,7 @@ class KillAura : Module(
 
     override fun onTick() {
         val player = mc.player ?: return
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val interactionManager = mc.interactionManager ?: return
 
         // Respect vanilla's own attack-speed cooldown instead of spamming
@@ -46,12 +46,12 @@ class KillAura : Module(
         // reduced damage in vanilla anyway, so there's no benefit to it,
         // and it reads as a real player's attack rate rather than a
         // constant every-tick click.
-        if (player.getAttackCooldownProgress(0f) < 1f) return
+        if (player.getAttackStrengthScale(0f) < 1f) return
 
-        val searchBox = player.boundingBox.expand(range.value)
+        val searchBox = player.bb.expand(range.value)
         val target = world.getOtherEntities(player, searchBox) { entity ->
             entity is LivingEntity &&
-                !entity.isDead &&
+                !entity.isDeadOrDying &&
                 entity.health > 0f &&
                 isValidTargetType(entity) &&
                 player.distanceTo(entity) <= range.value
@@ -59,17 +59,17 @@ class KillAura : Module(
 
         facePosition(player, target.eyePos)
         interactionManager.attackEntity(player, target)
-        player.swingHand(net.minecraft.util.Hand.MAIN_HAND)
+        player.swing(net.minecraft.util.Hand.MAIN_HAND)
     }
 
     private fun isValidTargetType(entity: LivingEntity): Boolean = when (entity) {
-        is PlayerEntity -> attackPlayers.value && entity != mc.player
-        is HostileEntity -> attackHostiles.value
-        is AnimalEntity -> attackAnimals.value
+        is Player -> attackPlayers.value && entity != mc.player
+        is Monster -> attackHostiles.value
+        is Animal -> attackAnimals.value
         else -> false
     }
 
-    private fun facePosition(player: net.minecraft.entity.player.PlayerEntity, target: net.minecraft.util.math.Vec3d) {
+    private fun facePosition(player: net.minecraft.entity.player.Player, target: net.minecraft.util.math.Vec3d) {
         val eyePos = player.eyePos
         val dx = target.x - eyePos.x
         val dy = target.y - eyePos.y
@@ -79,7 +79,7 @@ class KillAura : Module(
         val yaw = Math.toDegrees(Math.atan2(-dx, dz)).toFloat()
         val pitch = Math.toDegrees(-Math.atan2(dy, horizontalDist)).toFloat()
 
-        player.setYaw(yaw)
-        player.setPitch(pitch)
+        player.setYRot(yaw)
+        player.setXRot(pitch)
     }
 }

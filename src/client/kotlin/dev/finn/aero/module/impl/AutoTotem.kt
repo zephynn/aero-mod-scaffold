@@ -3,8 +3,8 @@ package dev.finn.aero.module.impl
 import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.SliderSetting
-import net.minecraft.item.Items
-import net.minecraft.screen.slot.SlotActionType
+import net.minecraft.world.item.Items
+import net.minecraft.world.inventory.ClickType
 
 /**
  * Swaps a totem of undying into the offhand once health drops below the
@@ -51,6 +51,6 @@ class AutoTotem : Module(
         // same numbers as their screen slots.
         val screenSlot = if (totemIndex < 9) 36 + totemIndex else totemIndex
 
-        interactionManager.clickSlot(player.currentScreenHandler.syncId, screenSlot, OFFHAND_SWAP_BUTTON, SlotActionType.SWAP, player)
+        interactionManager.clickSlot(player.currentScreenHandler.syncId, screenSlot, OFFHAND_SWAP_BUTTON, ClickType.SWAP, player)
     }
 }

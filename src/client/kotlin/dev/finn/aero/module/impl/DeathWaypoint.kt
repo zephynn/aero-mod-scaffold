@@ -3,12 +3,12 @@ package dev.finn.aero.module.impl
 import dev.finn.aero.config.Theme
 import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.DeathScreen
-import net.minecraft.client.render.RenderTickCounter
-import net.minecraft.registry.RegistryKey
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.DeathScreen
+import net.minecraft.client.DeltaTracker
+import net.minecraft.resources.ResourceKey
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.Level
 
 /**
  * Remembers where you last died and points to it on the HUD -- a small
@@ -22,8 +22,8 @@ class DeathWaypoint : Module(
     description = "Points toward your last death location.",
     category = Category.MISC,
 ) {
-    private var deathPos: Vec3d? = null
-    private var deathDimension: RegistryKey<World>? = null
+    private var deathPos: Vec3? = null
+    private var deathDimension: ResourceKey<Level>? = null
     private var wasOnDeathScreen = false
 
     override fun onDisable() {
@@ -43,7 +43,7 @@ class DeathWaypoint : Module(
         wasOnDeathScreen = onDeathScreen
     }
 
-    override fun onRender(context: DrawContext, tickCounter: RenderTickCounter) {
+    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         val pos = deathPos ?: return
         val player = mc.player ?: return
         if (deathDimension != mc.world?.registryKey) return
@@ -73,7 +73,7 @@ class DeathWaypoint : Module(
         context.fill(markerX - 2, barY - 3, markerX + 2, barY + 4, accent)
 
         val label = "Death · ${distance.toInt()}m"
-        val labelWidth = mc.textRenderer.getWidth(label)
-        context.drawTextWithShadow(mc.textRenderer, label, screenW / 2 - labelWidth / 2, barY + 8, accent)
+        val labelWidth = mc.font.width(label)
+        context.text(mc.font, label, screenW / 2 - labelWidth / 2, barY + 8, accent, true)
     }
 }
