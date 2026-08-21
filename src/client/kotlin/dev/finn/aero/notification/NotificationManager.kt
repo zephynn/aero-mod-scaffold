@@ -56,8 +56,8 @@ object NotificationManager {
         if (queue.isEmpty()) return
 
         val textRenderer = mc.font
-        val screenW = mc.window.scaledWidth
-        val screenH = mc.window.scaledHeight
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
         val position = ClientSettings.notificationPosition
         val top = position.startsWith("Top")
         val left = position.endsWith("Left")

@@ -10,7 +10,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer
  * AIR-swap [dev.finn.aero.mixin.ChunkRendererRegionMixin] does at
  * `terrainOpacity == 0f`.
  *
- * Only the two `color(...)` entry points need overriding -- everything
+ * Only the two `setColor(...)` entry points need overriding -- everything
  * else (position/uv/light/normal/etc.) passes straight through to
  * [delegate] unchanged.
  */
@@ -18,46 +18,46 @@ class AlphaScalingVertexConsumer(
     private val delegate: VertexConsumer,
     private val alphaScale: Float,
 ) : VertexConsumer {
-    override fun vertex(x: Float, y: Float, z: Float): VertexConsumer {
-        delegate.vertex(x, y, z)
+    override fun addVertex(x: Float, y: Float, z: Float): VertexConsumer {
+        delegate.addVertex(x, y, z)
         return this
     }
 
-    override fun color(red: Int, green: Int, blue: Int, alpha: Int): VertexConsumer {
+    override fun setColor(red: Int, green: Int, blue: Int, alpha: Int): VertexConsumer {
         val scaled = (alpha * alphaScale).toInt().coerceIn(0, 255)
-        delegate.color(red, green, blue, scaled)
+        delegate.setColor(red, green, blue, scaled)
         return this
     }
 
-    override fun color(argb: Int): VertexConsumer {
+    override fun setColor(argb: Int): VertexConsumer {
         val a = (argb ushr 24) and 0xFF
         val scaled = (a * alphaScale).toInt().coerceIn(0, 255)
-        delegate.color((scaled shl 24) or (argb and 0x00FFFFFF))
+        delegate.setColor((scaled shl 24) or (argb and 0x00FFFFFF))
         return this
     }
 
-    override fun texture(u: Float, v: Float): VertexConsumer {
-        delegate.texture(u, v)
+    override fun setUv(u: Float, v: Float): VertexConsumer {
+        delegate.setUv(u, v)
         return this
     }
 
-    override fun overlay(u: Int, v: Int): VertexConsumer {
-        delegate.overlay(u, v)
+    override fun setUv1(u: Int, v: Int): VertexConsumer {
+        delegate.setUv1(u, v)
         return this
     }
 
-    override fun light(u: Int, v: Int): VertexConsumer {
-        delegate.light(u, v)
+    override fun setUv2(u: Int, v: Int): VertexConsumer {
+        delegate.setUv2(u, v)
         return this
     }
 
-    override fun normal(x: Float, y: Float, z: Float): VertexConsumer {
-        delegate.normal(x, y, z)
+    override fun setNormal(x: Float, y: Float, z: Float): VertexConsumer {
+        delegate.setNormal(x, y, z)
         return this
     }
 
-    override fun lineWidth(width: Float): VertexConsumer {
-        delegate.lineWidth(width)
+    override fun setLineWidth(width: Float): VertexConsumer {
+        delegate.setLineWidth(width)
         return this
     }
 }

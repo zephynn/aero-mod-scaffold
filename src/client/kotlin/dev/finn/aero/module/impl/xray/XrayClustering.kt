@@ -8,7 +8,7 @@ data class XrayCluster(val members: List<BlockPos>) {
     val box: AABB by lazy {
         members.map { AABB(it) }.reduce { a, b -> a.minmax(b) }
     }
-    val center: net.minecraft.util.math.Vec3d get() = box.center
+    val center: net.minecraft.world.phys.Vec3 get() = box.center
     val size: Int get() = members.size
 }
 

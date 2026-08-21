@@ -40,14 +40,20 @@ object XrayState {
     /**
      * Forces every currently-loaded chunk to re-mesh so the mixin's
      * getBlockState swap actually takes visible effect. Verified via javap
-     * against the mapped client jar: WorldRenderer declares a no-arg
-     * `reload()` (distinct from the ResourceManager-taking overload) that
-     * rebuilds all chunks -- this is that method.
+     * against the 26.2 client jar: LevelRenderer's old no-arg `allChanged()`
+     * is gone; `invalidateCompiledGeometry(level, options, camera, blockColors)`
+     * is the replacement that discards and rebuilds every compiled section.
      */
     fun requestChunkReload() {
         val client = Minecraft.getInstance()
         client.execute {
-            client.levelRenderer.reload()
+            val level = client.level ?: return@execute
+            client.levelRenderer.invalidateCompiledGeometry(
+                level,
+                client.options,
+                client.gameRenderer.mainCamera(),
+                client.blockColors,
+            )
         }
     }
 }

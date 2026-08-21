@@ -31,8 +31,8 @@ class Criticals : Module(
 ) {
     override fun onTick() {
         val player = mc.player ?: return
-        if (!player.isOnGround || player.isSneaking || player.isTouchingWater || player.isClimbing) return
+        if (!player.onGround() || player.isCrouching || player.isInWater || player.onClimbable()) return
 
-        player.jump()
+        player.jumpFromGround()
     }
 }

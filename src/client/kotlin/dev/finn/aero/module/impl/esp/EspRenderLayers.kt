@@ -1,114 +1,78 @@
 package dev.finn.aero.module.impl.esp
 
+import com.mojang.blaze3d.pipeline.DepthStencilState
 import com.mojang.blaze3d.pipeline.RenderPipeline
-import com.mojang.blaze3d.platform.DepthTestFunction
+import com.mojang.blaze3d.platform.CompareOp
 import dev.finn.aero.client.AeroClient
 import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.renderer.rendertype.RenderTypes
-import net.minecraft.client.renderer.rendertype.RenderSetup
 
 /**
- * A "lines" render layer with depth testing disabled, so ESP boxes/tracers
- * draw through walls instead of being occluded like normal geometry --
- * vanilla's own outline system gets this for free for entities (see
- * EntityRendererMixin), but block-based ESP (Chest ESP) has no equivalent,
- * so it needs its own no-depth layer to draw into.
+ * "Lines"/"quads" render types with depth testing disabled, so ESP
+ * boxes/tracers draw through walls instead of being occluded like normal
+ * geometry -- vanilla's own outline system gets this for free for entities
+ * (see EntityRendererMixin), but block-based ESP (Chest ESP, X-Ray) has no
+ * equivalent, so it needs its own no-depth types to draw into.
  *
- * There's no public API for "the LINES pipeline, but with depth off":
- * RenderPipelines only exposes the *finished* LINES/LINES_TRANSLUCENT
- * pipelines, not the RENDERTYPE_LINES_SNIPPET they're both built from, and
- * RenderType's constructor is private. Vanilla builds LINES_TRANSLUCENT as
- * exactly "the lines snippet plus one extra builder call"
- * (withDepthWrite(false)) -- this does the same thing, reflectively
- * borrowing that private snippet rather than re-declaring the vertex
- * format/shaders/blend mode by hand and risking a mismatch, then adding
- * withDepthTestFunction(NO_DEPTH_TEST) on top.
+ * 26.x reshaped this area: depth test + depth write are now one
+ * [DepthStencilState] record on the pipeline rather than two separate
+ * builder calls, and every field a pipeline was built from is readable back
+ * off the finished object via public getters. That means no reflection is
+ * needed to copy vanilla's LINES / DEBUG_QUADS pipelines and flip depth off
+ * -- the only thing still not public is `RenderType.create`, which stays
+ * reflective.
  *
- * If any of that reflection ever breaks (an obfuscation/name change), this
- * falls back to normal depth-tested lines rather than crashing -- ESP still
- * works, it just stops seeing through walls.
+ * If any of that ever breaks, this falls back to normal depth-tested
+ * lines/boxes rather than crashing -- ESP still works, it just stops seeing
+ * through walls.
  */
 object EspRenderLayers {
-    val NO_DEPTH_LINES: RenderType by lazy { buildNoDepthLines() }
-
-    /**
-     * Filled-quad no-depth layer for X-Ray's "Solid"/"Both" highlight
-     * style. Unlike [NO_DEPTH_LINES], this doesn't need reflection:
-     * RenderPipelines.DEBUG_QUADS is a *finished* public RenderPipeline
-     * (no private snippet field backs it the way RENDERTYPE_LINES_SNIPPET
-     * does for lines), and RenderPipeline itself exposes public getters
-     * for every field a Snippet needs -- so this just re-wraps
-     * DEBUG_QUADS's own settings into a Snippet, then builds a copy with
-     * depth testing/writing turned off on top.
-     */
-    val NO_DEPTH_QUADS: RenderType by lazy { buildNoDepthQuads() }
-
-    private fun buildNoDepthLines(): RenderType {
-        return try {
-            val snippetField = RenderPipelines::class.java.getDeclaredField("RENDERTYPE_LINES_SNIPPET")
-            snippetField.isAccessible = true
-            val snippet = snippetField.get(null) as RenderPipeline.Snippet
-
-            val pipeline = RenderPipeline.builder(snippet)
-                .withLocation("aero/pipeline/esp_lines_no_depth")
-                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                .withDepthWrite(false)
-                .build()
-
-            val renderSetup = RenderSetup.builder(pipeline).build()
-
-            val ctor = RenderType::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
-            ctor.isAccessible = true
-            val layer = ctor.newInstance("aero_esp_lines_no_depth", renderSetup) as RenderType
-
-            AeroClient.LOGGER.info("Aero: built no-depth ESP line layer.")
-            layer
-        } catch (e: Exception) {
-            AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP line layer, falling back to depth-tested lines (ESP won't show through walls).", e)
-            RenderTypes.lines()
-        }
+    val NO_DEPTH_LINES: RenderType by lazy {
+        build("aero_esp_lines_no_depth", RenderPipelines.LINES) { RenderTypes.lines() }
     }
 
-    private fun buildNoDepthQuads(): RenderType {
+    val NO_DEPTH_QUADS: RenderType by lazy {
+        build("aero_esp_quads_no_depth", RenderPipelines.DEBUG_QUADS) { RenderTypes.debugFilledBox() }
+    }
+
+    /** Copies [base] with depth testing and depth writing turned off, wrapped in a RenderType named [name]. */
+    private fun build(name: String, base: RenderPipeline, fallback: () -> RenderType): RenderType {
         return try {
-            val base = RenderPipelines.DEBUG_QUADS
+            val builder = RenderPipeline.builder()
+                .withLocation("aero/pipeline/$name")
+                .withVertexShader(base.vertexShader)
+                .withFragmentShader(base.fragmentShader)
+                .withPolygonMode(base.polygonMode)
+                .withCull(base.isCull)
+                .withPrimitiveTopology(base.primitiveTopology)
+                // ALWAYS_PASS + no depth write == "draw through walls".
+                .withDepthStencilState(DepthStencilState(CompareOp.ALWAYS_PASS, false))
 
-            val snippet = RenderPipeline.Snippet(
-                java.util.Optional.of(base.vertexShader),
-                java.util.Optional.of(base.fragmentShader),
-                java.util.Optional.of(base.shaderDefines),
-                java.util.Optional.of(base.samplers),
-                java.util.Optional.of(base.uniforms),
-                base.blendFunction,
-                java.util.Optional.of(base.depthTestFunction),
-                java.util.Optional.of(base.polygonMode),
-                java.util.Optional.of(base.isCull),
-                java.util.Optional.of(base.isWriteColor),
-                java.util.Optional.of(base.isWriteAlpha),
-                java.util.Optional.of(base.isWriteDepth),
-                java.util.Optional.of(base.colorLogic),
-                java.util.Optional.of(base.vertexFormat),
-                java.util.Optional.of(base.vertexFormatMode),
-            )
+            for (layout in base.bindGroupLayouts) builder.withBindGroupLayout(layout)
+            base.colorTargetStates.forEachIndexed { index, state ->
+                if (state != null) builder.withColorTargetState(index, state) else builder.withUnusedColorTargetState(index)
+            }
+            base.vertexFormatBindings.forEachIndexed { index, format ->
+                if (format != null) builder.withVertexBinding(index, format)
+            }
+            val defines = base.shaderDefines
+            for (flag in defines.flags()) builder.withShaderDefine(flag)
+            for ((key, value) in defines.values()) builder.withShaderDefine(key, value.toIntOrNull() ?: 0)
 
-            val pipeline = RenderPipeline.builder(snippet)
-                .withLocation("aero/pipeline/esp_quads_no_depth")
-                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                .withDepthWrite(false)
-                .build()
+            val renderSetup = RenderSetup.builder(builder.build()).createRenderSetup()
 
-            val renderSetup = RenderSetup.builder(pipeline).build()
+            // RenderType.create is package-private; everything else above is public API.
+            val create = RenderType::class.java.getDeclaredMethod("create", String::class.java, RenderSetup::class.java)
+            create.isAccessible = true
+            val layer = create.invoke(null, name, renderSetup) as RenderType
 
-            val ctor = RenderType::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
-            ctor.isAccessible = true
-            val layer = ctor.newInstance("aero_esp_quads_no_depth", renderSetup) as RenderType
-
-            AeroClient.LOGGER.info("Aero: built no-depth ESP quad layer.")
+            AeroClient.LOGGER.info("Aero: built no-depth render type '{}'.", name)
             layer
         } catch (e: Exception) {
-            AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP quad layer, falling back to depth-tested filled box.", e)
-            RenderTypes.debugFilledBox()
+            AeroClient.LOGGER.warn("Aero: couldn't build no-depth render type '$name', falling back to a depth-tested one (ESP won't show through walls).", e)
+            fallback()
         }
     }
 }

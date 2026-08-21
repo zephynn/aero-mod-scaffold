@@ -39,7 +39,7 @@ class KillAura : Module(
     override fun onTick() {
         val player = mc.player ?: return
         val world = mc.level ?: return
-        val interactionManager = mc.interactionManager ?: return
+        val interactionManager = mc.gameMode ?: return
 
         // Respect vanilla's own attack-speed cooldown instead of spamming
         // every tick -- an attack before the cooldown's refilled just does
@@ -48,8 +48,8 @@ class KillAura : Module(
         // constant every-tick click.
         if (player.getAttackStrengthScale(0f) < 1f) return
 
-        val searchBox = player.bb.expand(range.value)
-        val target = world.getOtherEntities(player, searchBox) { entity ->
+        val searchBox = player.boundingBox.inflate(range.value)
+        val target = world.getEntities(player, searchBox) { entity ->
             entity is LivingEntity &&
                 !entity.isDeadOrDying &&
                 entity.health > 0f &&
@@ -57,9 +57,9 @@ class KillAura : Module(
                 player.distanceTo(entity) <= range.value
         }.minByOrNull { player.distanceTo(it) } as? LivingEntity ?: return
 
-        facePosition(player, target.eyePos)
-        interactionManager.attackEntity(player, target)
-        player.swing(net.minecraft.util.Hand.MAIN_HAND)
+        facePosition(player, target.eyePosition)
+        interactionManager.attack(player, target)
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND)
     }
 
     private fun isValidTargetType(entity: LivingEntity): Boolean = when (entity) {
@@ -69,8 +69,8 @@ class KillAura : Module(
         else -> false
     }
 
-    private fun facePosition(player: net.minecraft.entity.player.Player, target: net.minecraft.util.math.Vec3d) {
-        val eyePos = player.eyePos
+    private fun facePosition(player: net.minecraft.world.entity.player.Player, target: net.minecraft.world.phys.Vec3) {
+        val eyePos = player.eyePosition
         val dx = target.x - eyePos.x
         val dy = target.y - eyePos.y
         val dz = target.z - eyePos.z

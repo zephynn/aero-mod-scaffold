@@ -33,11 +33,11 @@ class DeathWaypoint : Module(
     }
 
     override fun onTick() {
-        val onDeathScreen = mc.currentScreen is DeathScreen
+        val onDeathScreen = mc.gui.screen() is DeathScreen
         if (onDeathScreen && !wasOnDeathScreen) {
             mc.player?.let {
-                deathPos = it.entityPos
-                deathDimension = mc.world?.registryKey
+                deathPos = it.position()
+                deathDimension = mc.level?.dimension()
             }
         }
         wasOnDeathScreen = onDeathScreen
@@ -46,20 +46,20 @@ class DeathWaypoint : Module(
     override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         val pos = deathPos ?: return
         val player = mc.player ?: return
-        if (deathDimension != mc.world?.registryKey) return
-        if (mc.currentScreen != null) return
+        if (deathDimension != mc.level?.dimension()) return
+        if (mc.gui.screen() != null) return
 
         val dx = pos.x - player.x
         val dz = pos.z - player.z
-        val distance = player.entityPos.distanceTo(pos)
+        val distance = player.position().distanceTo(pos)
         if (distance < 2.0) return
 
         val bearing = Math.toDegrees(Math.atan2(-dx, dz))
-        var angleDiff = (bearing - player.yaw) % 360.0
+        var angleDiff = (bearing - player.yRot) % 360.0
         if (angleDiff > 180.0) angleDiff -= 360.0
         if (angleDiff < -180.0) angleDiff += 360.0
 
-        val screenW = mc.window.scaledWidth
+        val screenW = mc.window.guiScaledWidth
         val barWidth = 120
         val barLeft = (screenW - barWidth) / 2
         val barY = 14

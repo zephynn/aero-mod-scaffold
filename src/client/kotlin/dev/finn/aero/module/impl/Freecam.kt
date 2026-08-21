@@ -49,24 +49,24 @@ class Freecam : Module(
 
     override fun onEnable() {
         val player = mc.player ?: return
-        FreecamState.position = player.eyePos
+        FreecamState.position = player.eyePosition
         FreecamState.speed = speed.value
         FreecamState.active = true
 
-        wasChunkCullingEnabled = mc.chunkCullingEnabled
-        mc.chunkCullingEnabled = false
+        wasChunkCullingEnabled = mc.smartCull
+        mc.smartCull = false
 
         // Local-only: stops gravity from pulling the (now-stationary) player
         // down without telling the server it's flying. KeyboardInputMixin is
         // what actually stops it from walking.
-        wasNoGravity = player.hasNoGravity()
+        wasNoGravity = player.isNoGravity()
         player.setNoGravity(true)
     }
 
     override fun onDisable() {
         FreecamState.active = false
         FreecamState.position = null
-        mc.chunkCullingEnabled = wasChunkCullingEnabled
+        mc.smartCull = wasChunkCullingEnabled
 
         val player = mc.player ?: return
         player.setNoGravity(wasNoGravity)

@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3
  */
 object EspRendering {
     /** [box] in absolute world coordinates; [camPos] is subtracted here so callers never have to think about it. */
-    fun drawBox(matrices: PoseStack, buffer: VertexConsumer, camPos: Vec3, box: AABB, color: Int, width: Float = 2f) {
+    fun drawBox(entry: PoseStack.Pose, buffer: VertexConsumer, camPos: Vec3, box: AABB, color: Int, width: Float = 2f) {
         val x0 = box.minX - camPos.x
         val y0 = box.minY - camPos.y
         val z0 = box.minZ - camPos.z
@@ -22,20 +22,20 @@ object EspRendering {
         val z1 = box.maxZ - camPos.z
 
         // Bottom face.
-        segment(matrices, buffer, x0, y0, z0, x1, y0, z0, color, width)
-        segment(matrices, buffer, x1, y0, z0, x1, y0, z1, color, width)
-        segment(matrices, buffer, x1, y0, z1, x0, y0, z1, color, width)
-        segment(matrices, buffer, x0, y0, z1, x0, y0, z0, color, width)
+        segment(entry, buffer, x0, y0, z0, x1, y0, z0, color, width)
+        segment(entry, buffer, x1, y0, z0, x1, y0, z1, color, width)
+        segment(entry, buffer, x1, y0, z1, x0, y0, z1, color, width)
+        segment(entry, buffer, x0, y0, z1, x0, y0, z0, color, width)
         // Top face.
-        segment(matrices, buffer, x0, y1, z0, x1, y1, z0, color, width)
-        segment(matrices, buffer, x1, y1, z0, x1, y1, z1, color, width)
-        segment(matrices, buffer, x1, y1, z1, x0, y1, z1, color, width)
-        segment(matrices, buffer, x0, y1, z1, x0, y1, z0, color, width)
+        segment(entry, buffer, x0, y1, z0, x1, y1, z0, color, width)
+        segment(entry, buffer, x1, y1, z0, x1, y1, z1, color, width)
+        segment(entry, buffer, x1, y1, z1, x0, y1, z1, color, width)
+        segment(entry, buffer, x0, y1, z1, x0, y1, z0, color, width)
         // Vertical edges.
-        segment(matrices, buffer, x0, y0, z0, x0, y1, z0, color, width)
-        segment(matrices, buffer, x1, y0, z0, x1, y1, z0, color, width)
-        segment(matrices, buffer, x1, y0, z1, x1, y1, z1, color, width)
-        segment(matrices, buffer, x0, y0, z1, x0, y1, z1, color, width)
+        segment(entry, buffer, x0, y0, z0, x0, y1, z0, color, width)
+        segment(entry, buffer, x1, y0, z0, x1, y1, z0, color, width)
+        segment(entry, buffer, x1, y0, z1, x1, y1, z1, color, width)
+        segment(entry, buffer, x0, y0, z1, x0, y1, z1, color, width)
     }
 
     /**
@@ -45,20 +45,18 @@ object EspRendering {
      * before calling this) rather than taking a separate alpha parameter,
      * matching how [drawBox]'s own color already carries full ARGB.
      */
-    fun drawSolidBox(matrices: PoseStack, buffer: VertexConsumer, camPos: Vec3, box: AABB, color: Int) {
+    fun drawSolidBox(entry: PoseStack.Pose, buffer: VertexConsumer, camPos: Vec3, box: AABB, color: Int) {
         val x0 = (box.minX - camPos.x).toFloat()
         val y0 = (box.minY - camPos.y).toFloat()
         val z0 = (box.minZ - camPos.z).toFloat()
         val x1 = (box.maxX - camPos.x).toFloat()
         val y1 = (box.maxY - camPos.y).toFloat()
         val z1 = (box.maxZ - camPos.z).toFloat()
-        val entry = matrices.last()
-
         fun quad(ax: Float, ay: Float, az: Float, bx: Float, by: Float, bz: Float, cx: Float, cy: Float, cz: Float, dx: Float, dy: Float, dz: Float) {
-            buffer.vertex(entry, ax, ay, az).color(color)
-            buffer.vertex(entry, bx, by, bz).color(color)
-            buffer.vertex(entry, cx, cy, cz).color(color)
-            buffer.vertex(entry, dx, dy, dz).color(color)
+            buffer.addVertex(entry, ax, ay, az).setColor(color)
+            buffer.addVertex(entry, bx, by, bz).setColor(color)
+            buffer.addVertex(entry, cx, cy, cz).setColor(color)
+            buffer.addVertex(entry, dx, dy, dz).setColor(color)
         }
 
         // -Y / +Y
@@ -87,7 +85,7 @@ object EspRendering {
         if (length < 0.5f) return
         val angle = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
 
-        val matrices = context.matrices
+        val matrices = context.pose()
         matrices.pushMatrix()
         matrices.translate(x0.toFloat(), y0.toFloat())
         matrices.rotate(angle)
@@ -96,7 +94,7 @@ object EspRendering {
     }
 
     private fun segment(
-        matrices: PoseStack,
+        entry: PoseStack.Pose,
         buffer: VertexConsumer,
         x1: Double,
         y1: Double,
@@ -107,7 +105,6 @@ object EspRendering {
         color: Int,
         width: Float,
     ) {
-        val entry = matrices.last()
         val dx = (x2 - x1).toFloat()
         val dy = (y2 - y1).toFloat()
         val dz = (z2 - z1).toFloat()
@@ -116,7 +113,7 @@ object EspRendering {
         val ny = dy / length
         val nz = dz / length
 
-        buffer.vertex(entry, x1.toFloat(), y1.toFloat(), z1.toFloat()).color(color).normal(entry, nx, ny, nz).lineWidth(width)
-        buffer.vertex(entry, x2.toFloat(), y2.toFloat(), z2.toFloat()).color(color).normal(entry, nx, ny, nz).lineWidth(width)
+        buffer.addVertex(entry, x1.toFloat(), y1.toFloat(), z1.toFloat()).setColor(color).setNormal(entry, nx, ny, nz).setLineWidth(width)
+        buffer.addVertex(entry, x2.toFloat(), y2.toFloat(), z2.toFloat()).setColor(color).setNormal(entry, nx, ny, nz).setLineWidth(width)
     }
 }

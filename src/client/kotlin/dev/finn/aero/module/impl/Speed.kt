@@ -39,15 +39,15 @@ class Speed : Module(
 
     override fun onTick() {
         val player = mc.player ?: return
-        val input = player.input.movementInput
+        val input = player.input.moveVector
         if (input.x == 0f && input.y == 0f) return
 
-        val vel = player.velocity
+        val vel = player.deltaMovement
         val horizontal = sqrt(vel.x * vel.x + vel.z * vel.z)
         if (horizontal < 0.001) return
 
         val targetPerTick = speed.value / 20.0
         val scale = targetPerTick / horizontal
-        player.setVelocity(vel.x * scale, vel.y, vel.z * scale)
+        player.setDeltaMovement(vel.x * scale, vel.y, vel.z * scale)
     }
 }

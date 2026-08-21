@@ -64,25 +64,25 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
     private val colorBg get() = (0xC0 shl 24) or Theme.darkenedBackground(0f)
     private val accent get() = (0xFF shl 24) or Theme.accent
 
-    override fun shouldPause(): Boolean = false
+    override fun isPauseScreen(): Boolean = false
 
     override fun init() {
         guiX = (width - WIDTH) / 2
         guiY = (height - HEIGHT) / 2
     }
 
-    override fun close() {
+    override fun onClose() {
         if (!closing) {
             closing = true
             return
         }
-        super.close()
+        super.onClose()
     }
 
-    override fun render(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
         if (windowAnim <= 0.001f && closing) {
-            client?.setScreen(null)
+            minecraft?.gui?.setScreen(null)
             return
         }
 
@@ -180,7 +180,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         text(context, "OPEN CLICKGUI", x, y + 5, COLOR_TEXT_DIM)
 
         val label = if (rebindingGuiKey) "..." else keyName(ClientSettings.guiKeybind)
-        val chipW = textRenderer.width(label) + 10
+        val chipW = font.width(label) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
@@ -202,7 +202,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         val w = WIDTH - 24
         text(context, "NOTIFICATIONS", x, y + 5, COLOR_TEXT_FAINT)
         val label = ClientSettings.notificationPosition
-        val chipW = textRenderer.width(label) + 10
+        val chipW = font.width(label) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
@@ -215,7 +215,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         val w = WIDTH - 24
         text(context, "DURATION", x, y + 5, COLOR_TEXT_DIM)
         val label = "${ClientSettings.notificationDurationMs / 1000.0}s"
-        text(context, label, x + w - textRenderer.width(label) - 24, y + 5, COLOR_TEXT)
+        text(context, label, x + w - font.width(label) - 24, y + 5, COLOR_TEXT)
 
         val minusX = x + w - 20
         val plusX = x + w - 8
@@ -232,7 +232,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         fill(context, x, y, x + w, y + h, colorFieldBg)
         if (hAnim > 0.02f) fill(context, x, y, x + w, y + h, scaleAlpha(0x20FFFFFF.toInt(), hAnim))
         val label = "Reset to defaults"
-        text(context, label, x + (w - textRenderer.width(label)) / 2, y + 4, COLOR_TEXT_DIM)
+        text(context, label, x + (w - font.width(label)) / 2, y + 4, COLOR_TEXT_DIM)
     }
 
     // --- helpers -------------------------------------------------------------
@@ -242,7 +242,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
     }
 
     private fun text(context: GuiGraphicsExtractor, str: String, x: Int, y: Int, color: Int) {
-        context.text(textRenderer, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)), true)
+        context.text(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)), true)
     }
 
     private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
@@ -294,7 +294,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         }
 
         if (mouseX in guiX.toDouble()..(guiX + 16).toDouble() && mouseY in guiY.toDouble()..(guiY + CHROME_HEIGHT).toDouble()) {
-            client?.setScreen(ClickGuiScreen())
+            minecraft?.gui?.setScreen(ClickGuiScreen())
             return true
         }
 
@@ -322,7 +322,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
 
         val w = WIDTH - 24
         val kbLabel = keyName(ClientSettings.guiKeybind)
-        val chipW = textRenderer.width(kbLabel) + 10
+        val chipW = font.width(kbLabel) + 10
         val chipX = x + w - chipW
         val chipY = y + 2
         if (mouseX in chipX.toDouble()..(chipX + chipW).toDouble() && mouseY in chipY.toDouble()..(chipY + 12).toDouble()) {
@@ -340,7 +340,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
 
         // Notification position chip.
         val posLabel = ClientSettings.notificationPosition
-        val posChipW = textRenderer.width(posLabel) + 10
+        val posChipW = font.width(posLabel) + 10
         val posChipX = x + w - posChipW
         val posChipY = y + 2
         if (mouseX in posChipX.toDouble()..(posChipX + posChipW).toDouble() && mouseY in posChipY.toDouble()..(posChipY + 12).toDouble()) {
@@ -405,7 +405,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
                 ConfigManager.save()
                 return true
             }
-            close()
+            onClose()
             return true
         }
         return super.keyPressed(input)

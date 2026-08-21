@@ -71,16 +71,16 @@ abstract class EspModule(
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camera = mc.gameRenderer.camera
-        val camPos = camera.cameraPos
-        val fov = mc.options.fov.value.toFloat()
-        val screenW = mc.window.scaledWidth
-        val screenH = mc.window.scaledHeight
+        val camera = mc.gameRenderer.mainCamera()
+        val camPos = camera.position()
+        val fov = mc.options.fov().get().toFloat()
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
         val anchorX = screenW / 2
         val anchorY = screenH / 2
 
         for ((entity, color) in targets) {
-            val point = EspProjection.project(camPos, camera.yRot, camera.xRot, fov, screenW, screenH, entity.bb.center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot(), camera.xRot(), fov, screenW, screenH, entity.boundingBox.center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }

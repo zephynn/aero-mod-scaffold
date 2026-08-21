@@ -11,7 +11,7 @@ import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.SliderSetting
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.world.level.block.Block
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.DeltaTracker
@@ -98,7 +98,7 @@ class XrayModule : Module(
         tickCounter++
         if (tickCounter % 4 != 0) return
 
-        val world = mc.world ?: return
+        val world = mc.level ?: return
         val self = mc.player ?: return
         val positions = scanBlocks(world, self)
 
@@ -134,7 +134,7 @@ class XrayModule : Module(
         targetsDirty = true
     }
 
-    private fun scanBlocks(world: net.minecraft.client.world.ClientWorld, self: net.minecraft.entity.player.PlayerEntity): List<BlockPos> {
+    private fun scanBlocks(world: net.minecraft.client.multiplayer.ClientLevel, self: net.minecraft.world.entity.player.Player): List<BlockPos> {
         val targets = when (mode.value) {
             "Ores" -> XrayPresets.ORES
             "Base Finder" -> XrayPresets.BASE_FINDER
@@ -144,18 +144,18 @@ class XrayModule : Module(
         if (targets.isEmpty()) return emptyList()
 
         val results = mutableListOf<BlockPos>()
-        val centerChunkX = self.blockPos.x shr 4
-        val centerChunkZ = self.blockPos.z shr 4
+        val centerChunkX = self.blockPosition().x shr 4
+        val centerChunkZ = self.blockPosition().z shr 4
         val chunkRadius = scanRange.value.toInt()
-        val bottomSection = world.bottomSectionCoord
-        val sectionCount = world.countVerticalSections()
+        val bottomSection = world.minSectionY
+        val sectionCount = world.sectionsCount
 
         for (cx in (centerChunkX - chunkRadius)..(centerChunkX + chunkRadius)) {
             for (cz in (centerChunkZ - chunkRadius)..(centerChunkZ + chunkRadius)) {
                 val chunk = world.getChunk(cx, cz) ?: continue
                 for (sectionIndex in 0 until sectionCount) {
-                    val section = chunk.getSectionArray().getOrNull(sectionIndex) ?: continue
-                    if (section.isEmpty) continue
+                    val section = chunk.sections.getOrNull(sectionIndex) ?: continue
+                    if (section.hasOnlyAir()) continue
                     val sectionY = (bottomSection + sectionIndex) shl 4
 
                     for (lx in 0 until 16) {
@@ -174,7 +174,7 @@ class XrayModule : Module(
         return results
     }
 
-    override fun onWorldRender(context: WorldRenderContext) {
+    override fun onWorldRender(context: LevelRenderContext) {
         if (cachedIndividual.isEmpty() && cachedClusters.isEmpty()) return
         // "None" relies on terrain transparency alone -- skip the ESP
         // outline/fill/tracer draw entirely (tracer is gated separately in
@@ -182,40 +182,40 @@ class XrayModule : Module(
         // highlight itself).
         if (highlightStyle.value == "None") return
 
-        val camPos = mc.gameRenderer.camera.cameraPos
-        val matrices = context.matrices()
+        val camPos = mc.gameRenderer.mainCamera().position()
+        val collector = context.submitNodeCollector()
+        val poseStack = context.poseStack()
         val color = highlightColor.value
         val style = highlightStyle.value
 
         val drawIndividual = mode.value != "Base Finder" || showIndicators.value
         if (drawIndividual) {
-            // Get and fully drain one ad-hoc render layer's buffer before
-            // starting the other: context.consumers() is a
-            // VertexConsumerProvider.Immediate, which auto-flushes/ends
-            // whichever ad-hoc (non-standard) layer was previously
-            // "building" as soon as a *different* one starts -- so getting
-            // both buffers up front and interleaving vertex() calls across
-            // them (as this used to do) ends up writing into an
-            // already-ended BufferBuilder and crashes with
-            // IllegalStateException("Not building!").
+            // 26.x's submit pipeline replaces the old
+            // VertexConsumerProvider.Immediate: each submitCustomGeometry
+            // call owns its own buffer for one render type, so the layers no
+            // longer have to be drained one at a time to avoid writing into
+            // an already-ended BufferBuilder.
             if (style != "Outline") {
-                val quadBuffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_QUADS)
-                for (pos in cachedIndividual) {
-                    EspRendering.drawSolidBox(matrices, quadBuffer, camPos, AABB(pos), color)
+                collector.submitCustomGeometry(poseStack, EspRenderLayers.NO_DEPTH_QUADS) { pose, buffer ->
+                    for (pos in cachedIndividual) {
+                        EspRendering.drawSolidBox(pose, buffer, camPos, AABB(pos), color)
+                    }
                 }
             }
             if (style != "Solid") {
-                val lineBuffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_LINES)
-                for (pos in cachedIndividual) {
-                    EspRendering.drawBox(matrices, lineBuffer, camPos, AABB(pos), color)
+                collector.submitCustomGeometry(poseStack, EspRenderLayers.NO_DEPTH_LINES) { pose, buffer ->
+                    for (pos in cachedIndividual) {
+                        EspRendering.drawBox(pose, buffer, camPos, AABB(pos), color)
+                    }
                 }
             }
         }
 
         if (mode.value == "Base Finder" && showClusters.value && cachedClusters.isNotEmpty()) {
-            val lineBuffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_LINES)
-            for (cluster in cachedClusters) {
-                EspRendering.drawBox(matrices, lineBuffer, camPos, cluster.box, color, width = 3f)
+            collector.submitCustomGeometry(poseStack, EspRenderLayers.NO_DEPTH_LINES) { pose, buffer ->
+                for (cluster in cachedClusters) {
+                    EspRendering.drawBox(pose, buffer, camPos, cluster.box, color, width = 3f)
+                }
             }
         }
     }
@@ -229,33 +229,33 @@ class XrayModule : Module(
         if (!tracer.value) return
         if (cachedIndividual.isEmpty()) return
 
-        val camera = mc.gameRenderer.camera
-        val camPos = camera.cameraPos
-        val fov = mc.options.fov.value.toFloat()
-        val screenW = mc.window.scaledWidth
-        val screenH = mc.window.scaledHeight
+        val camera = mc.gameRenderer.mainCamera()
+        val camPos = camera.position()
+        val fov = mc.options.fov().get().toFloat()
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
         val anchorX = screenW / 2
         val anchorY = screenH / 2
         val color = highlightColor.value
 
         for (pos in cachedIndividual) {
-            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, AABB(pos).center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot(), camera.xRot(), fov, screenW, screenH, AABB(pos).center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }
 
     private fun renderClusterLabels(context: GuiGraphicsExtractor) {
-        val camera = mc.gameRenderer.camera
-        val camPos = camera.cameraPos
-        val fov = mc.options.fov.value.toFloat()
-        val screenW = mc.window.scaledWidth
-        val screenH = mc.window.scaledHeight
+        val camera = mc.gameRenderer.mainCamera()
+        val camPos = camera.position()
+        val fov = mc.options.fov().get().toFloat()
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
 
         for (cluster in cachedClusters) {
-            val point = EspProjection.project(camPos, camera.yaw, camera.pitch, fov, screenW, screenH, cluster.center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot(), camera.xRot(), fov, screenW, screenH, cluster.center) ?: continue
             val label = "Base (${cluster.size})"
-            val width = mc.textRenderer.width(label)
-            context.text(mc.textRenderer, label, point.first - width / 2, point.second, highlightColor.value, true)
+            val width = mc.font.width(label)
+            context.text(mc.font, label, point.first - width / 2, point.second, highlightColor.value, true)
         }
     }
 }

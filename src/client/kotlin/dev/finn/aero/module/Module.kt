@@ -1,7 +1,7 @@
 package dev.finn.aero.module
 
 import dev.finn.aero.setting.Setting
-import net.fabricmc.fabric.api.client.rendering.v1.level.WorldRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.DeltaTracker
@@ -76,5 +76,5 @@ abstract class Module(
     open fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {}
 
     /** Called every rendered frame while enabled, for 3D world-space overlays (ESP boxes, waypoints). */
-    open fun onWorldRender(context: WorldRenderContext) {}
+    open fun onWorldRender(context: LevelRenderContext) {}
 }

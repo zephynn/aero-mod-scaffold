@@ -22,16 +22,16 @@ object XrayCustomConfig {
     }
 
     fun blocks(): Set<Block> =
-        ids.mapNotNull { id -> Identifier.tryParse(id)?.let { BuiltInRegistries.BLOCK.get(it) } }.toSet()
+        ids.mapNotNull { id -> Identifier.tryParse(id)?.let { BuiltInRegistries.BLOCK.getValue(it) } }.toSet()
 
-    fun contains(block: Block): Boolean = BuiltInRegistries.BLOCK.getId(block).toString() in ids
+    fun contains(block: Block): Boolean = BuiltInRegistries.BLOCK.getKey(block).toString() in ids
 
     fun add(block: Block) {
-        ids.add(BuiltInRegistries.BLOCK.getId(block).toString())
+        ids.add(BuiltInRegistries.BLOCK.getKey(block).toString())
     }
 
     fun remove(block: Block) {
-        ids.remove(BuiltInRegistries.BLOCK.getId(block).toString())
+        ids.remove(BuiltInRegistries.BLOCK.getKey(block).toString())
     }
 
     fun toggle(block: Block) {

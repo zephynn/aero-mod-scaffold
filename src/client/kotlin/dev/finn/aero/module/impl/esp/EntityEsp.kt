@@ -39,9 +39,9 @@ class EntityEsp : EspModule(
     private val overrideColor = register(ColorSetting("Override Color", "Outline colour for the mob type selected above.", 0xFFE74C3C.toInt()))
 
     override fun collectTargets(world: ClientLevel, self: Player, range: Double): List<Pair<Entity, Int>> =
-        world.entities
+        world.entitiesForRendering()
             .filter { it !== self && it is LivingEntity && it !is Player && it.isAlive }
-            .filter { self.entityPos.distanceTo(it.entityPos) <= range }
+            .filter { self.position().distanceTo(it.position()) <= range }
             .map { it to colorFor(it) }
 
     private fun colorFor(entity: Entity): Int {

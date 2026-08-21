@@ -5,7 +5,7 @@ import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.SliderSetting
-import net.fabricmc.fabric.api.minecraft.rendering.v1.level.WorldRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.ChestBlock
 import net.minecraft.world.level.block.entity.ChestBlockEntity
@@ -43,25 +43,25 @@ class ChestEsp : Module(
     private val shulkerColor = register(ColorSetting("Shulker Color", "Outline colour for shulker boxes.", 0xFF9B59B6.toInt()))
 
     /**
-     * World.getGloballyRenderedBlockEntities() only ever turned up empty client-side (it's
+     * Level.getGloballyRenderedBlockEntities() only ever turned up empty client-side (it's
      * populated for server ticking, not for the client's own book-keeping)
      * -- so instead this walks the same per-chunk block entity maps the
      * vanilla block-entity renderer itself uses, over just the chunks
      * within range.
      */
     private fun collectTargets(world: ClientLevel, self: Player, maxRange: Double): List<Pair<AABB, Int>> {
-        val selfPos = self.entityPos
+        val selfPos = self.position()
         val chestPositions = mutableMapOf<BlockPos, Int>()
         val results = mutableListOf<Pair<AABB, Int>>()
 
-        val centerChunkX = self.blockPosition.x shr 4
-        val centerChunkZ = self.blockPosition.z shr 4
+        val centerChunkX = self.blockPosition().x shr 4
+        val centerChunkZ = self.blockPosition().z shr 4
         val chunkRadius = (maxRange / 16.0).toInt() + 1
 
         for (cx in (centerChunkX - chunkRadius)..(centerChunkX + chunkRadius)) {
             for (cz in (centerChunkZ - chunkRadius)..(centerChunkZ + chunkRadius)) {
                 val chunk = world.getChunk(cx, cz) ?: continue
-                for ((pos, blockEntity) in chunk.globallyRenderedBlockEntities) {
+                for ((pos, blockEntity) in chunk.blockEntities) {
                     if (selfPos.distanceTo(AABB(pos).center) > maxRange) continue
 
                     when (blockEntity) {
@@ -84,7 +84,7 @@ class ChestEsp : Module(
         for ((pos, color) in chestPositions) {
             if (pos in merged) continue
             val state = world.getBlockState(pos)
-            val chestType = state.getOrEmpty(ChestBlock.TYPE).orElse(ChestType.SINGLE)
+            val chestType = state.getValueOrElse(ChestBlock.TYPE, ChestType.SINGLE)
             val partner = if (chestType == ChestType.SINGLE) {
                 null
             } else {
@@ -105,19 +105,23 @@ class ChestEsp : Module(
         return results
     }
 
-    override fun onWorldRender(context: WorldRenderContext) {
+    override fun onWorldRender(context: LevelRenderContext) {
         val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camPos = mc.gameRenderer.camera.cameraPos
-        val matrices = context.matrices()
-        val buffer = context.consumers().getBuffer(EspRenderLayers.NO_DEPTH_LINES)
+        val camPos = mc.gameRenderer.mainCamera().position()
 
-        for ((box, color) in targets) {
-            EspRendering.drawBox(matrices, buffer, camPos, box, color)
+        // 26.x submits geometry rather than writing into a shared
+        // VertexConsumerProvider: one submitCustomGeometry call per render
+        // type hands back the pose + buffer to draw into at the right point
+        // in the frame.
+        context.submitNodeCollector().submitCustomGeometry(context.poseStack(), EspRenderLayers.NO_DEPTH_LINES) { pose, buffer ->
+            for ((box, color) in targets) {
+                EspRendering.drawBox(pose, buffer, camPos, box, color)
+            }
         }
     }
 
@@ -129,16 +133,16 @@ class ChestEsp : Module(
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camera = mc.gameRenderer.camera
-        val camPos = camera.cameraPos
-        val fov = mc.options.fov.value.toFloat()
-        val screenW = mc.window.scaledWidth
-        val screenH = mc.window.scaledHeight
+        val camera = mc.gameRenderer.mainCamera()
+        val camPos = camera.position()
+        val fov = mc.options.fov().get().toFloat()
+        val screenW = mc.window.guiScaledWidth
+        val screenH = mc.window.guiScaledHeight
         val anchorX = screenW / 2
         val anchorY = screenH / 2
 
         for ((box, color) in targets) {
-            val point = EspProjection.project(camPos, camera.yRot, camera.xRot, fov, screenW, screenH, box.center) ?: continue
+            val point = EspProjection.project(camPos, camera.yRot(), camera.xRot(), fov, screenW, screenH, box.center) ?: continue
             EspRendering.drawScreenLine(context, anchorX, anchorY, point.first, point.second, color)
         }
     }

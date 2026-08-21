@@ -21,8 +21,8 @@ class Sprint : Module(
 
         // We don't force-sprint while sneaking or moving backward, matching
         // vanilla's own restrictions on when sprinting is allowed.
-        val movingForward = player.input.hasForwardMovement()
-        val canSprint = !player.isSneaking && !player.isSprinting && movingForward
+        val movingForward = player.input.hasForwardImpulse()
+        val canSprint = !player.isCrouching && !player.isSprinting && movingForward
 
         if (canSprint) {
             player.isSprinting = true

@@ -16,9 +16,9 @@ class PlayerEsp : EspModule(
     private val defaultColor = register(ColorSetting("Default Color", "Outline colour for other players.", 0xFF3FB6D6.toInt()))
 
     override fun collectTargets(world: ClientLevel, self: Player, range: Double): List<Pair<Entity, Int>> =
-        world.entities
+        world.entitiesForRendering()
             .filterIsInstance<Player>()
             .filter { it !== self && it.isAlive }
-            .filter { self.entityPos.distanceTo(it.entityPos) <= range }
+            .filter { self.position().distanceTo(it.position()) <= range }
             .map { it to defaultColor.value }
 }

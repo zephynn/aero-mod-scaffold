@@ -79,9 +79,9 @@ class ColorPickerPopup {
         val closeY = y + 3
         val closeHovered = mouseX in closeX..(closeX + CLOSE_SIZE) && mouseY in closeY..(closeY + CLOSE_SIZE)
         context.text(
-            net.minecraft.client.MinecraftClient.getInstance().textRenderer,
-            "x", closeX, closeY, if (closeHovered) 0xFFFFFFFF.toInt() else 0xFF83878E.toInt(),
-        , true)
+            net.minecraft.client.Minecraft.getInstance().font,
+            "x", closeX, closeY, if (closeHovered) 0xFFFFFFFF.toInt() else 0xFF83878E.toInt(), true,
+        )
 
         renderSvSquare(context)
         renderHueSlider(context)
