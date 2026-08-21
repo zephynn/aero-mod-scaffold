@@ -35,20 +35,6 @@ dependencies {
 	implementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
 }
 
-// Loom's own default sponge-mixin (0.15.4) is missing IAdviceProvider,
-// which fabric-loader 0.19.x's mixin service needs -> crash on launch.
-// 0.17.1+ has it, but breaks fabric-api's own fluid-rendering mixin
-// (MixinExtras 0.4.1's EXPRESSION injection point isn't valid against
-// that sponge-mixin version). Bump MixinExtras alongside it -- the two
-// are meant to move together -- to fix that regression too.
-configurations.configureEach {
-	resolutionStrategy {
-		force "net.fabricmc:sponge-mixin:0.17.1+mixin.0.8.7"
-		force "io.github.llamalad7:mixinextras-fabric:0.5.4"
-	}
-}
-
-
 processResources {
 	def version = project.version
 	inputs.property "version", version
