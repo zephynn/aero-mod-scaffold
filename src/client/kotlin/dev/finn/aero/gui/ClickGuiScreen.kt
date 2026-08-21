@@ -6,8 +6,6 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.module.ModuleManager
 import dev.finn.aero.module.impl.xray.XrayModule
-import dev.finn.aero.setting.BoolSetting
-import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.KeybindSetting
 import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.Setting
@@ -175,20 +173,8 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     // --- Row model, rebuilt every frame from current category/search/expand state ---
-
-    /** One list row: a module header (setting == null) or one of its settings, indented underneath it. */
-    private data class Row(
-        val top: Int,
-        val bottom: Int,
-        val module: Module,
-        val setting: Setting<*>?,
-        val categoryLabel: String?,
-        /** True for the special "Edit List..." row X-Ray's Custom mode gets instead of a generic Setting -- see class kdoc. */
-        val isEditListButton: Boolean = false,
-        /** True for one option row of an expanded ModeSetting's inline dropdown -- [setting] is the owning ModeSetting, [dropdownOption] is this row's option string. */
-        val isDropdownOption: Boolean = false,
-        val dropdownOption: String? = null,
-    )
+    // Row itself, plus per-setting-type rendering/click-handling, live in
+    // gui/SettingRow.kt now, shared with MeteorGuiScreen.
 
     private fun visibleModules(): List<Pair<Module, String?>> {
         if (searchQuery.isNotBlank()) {
@@ -204,7 +190,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         return ModuleManager.byCategory(selectedCategory).map { it to null }
     }
 
-    private fun settingRowHeight(setting: Setting<*>) = if (setting is SliderSetting) SLIDER_ROW_HEIGHT else SETTING_ROW_HEIGHT
+    private fun settingRowHeight(setting: Setting<*>) = SettingRow.heightFor(setting)
 
     private fun buildRows(): List<Row> {
         var y = guiY + CHROME_HEIGHT + 24
@@ -476,41 +462,38 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         val listX = guiX + railWidth
         val x = listX + 20
         val x1 = listX + listWidth - 6
-        val w = (x1 - x).coerceAtLeast(20)
         val extra = animatedExpand(row.module)
         if (extra <= 0.02f) return
+        SettingRow.render(settingCtx(context), setting, row.top, x, x1, extra)
+    }
 
-        when (setting) {
-            is BoolSetting -> {
-                text(context, setting.name, x, row.top + 5, COLOR_TEXT_DIM, extra)
-                drawToggle(context, x1 - 22, row.top + 4, 22, 10, if (setting.value) 1f else 0f, extra)
-            }
-            is SliderSetting -> {
-                text(context, setting.name, x, row.top + 3, COLOR_TEXT_DIM, extra)
-                val valueLabel = "%.2f".format(setting.value)
-                text(context, valueLabel, x1 - font.width(valueLabel), row.top + 3, COLOR_TEXT_DIM, extra)
-                val barY = row.top + 15
-                fill(context, x, barY, x1, barY + 2, COLOR_TRACK_OFF, extra)
-                val frac = ((setting.value - setting.min) / (setting.max - setting.min)).coerceIn(0.0, 1.0)
-                val fillX = x + (frac * (x1 - x)).toInt()
-                fill(context, x, barY, fillX, barY + 2, accent, extra)
-            }
-            is ModeSetting -> {
-                text(context, setting.name, x, row.top + 5, COLOR_TEXT_DIM, extra)
-                val label = (if (setting == modeDropdown) "▾ " else "▸ ") + setting.value
-                text(context, label, x1 - font.width(label), row.top + 5, COLOR_TEXT, extra)
-            }
-            is KeybindSetting -> {
-                text(context, setting.name, x, row.top + 5, COLOR_TEXT_DIM, extra)
-                val listening = setting == keybindTarget
-                val label = if (listening) "..." else keyName(setting.value)
-                text(context, label, x1 - font.width(label), row.top + 5, if (listening) accent else COLOR_TEXT, extra)
-            }
-            is ColorSetting -> {
-                text(context, setting.name, x, row.top + 5, COLOR_TEXT_DIM, extra)
-                fill(context, x1 - 20, row.top + 3, x1, row.top + 13, setting.value, extra)
-            }
-        }
+    /** Builds a [SettingRow.Ctx] bound to this screen's own colours/state, wrapping [context] for the lifetime of one render call. */
+    private fun settingCtx(context: GuiGraphicsExtractor): SettingRow.Ctx = object : SettingRow.Ctx {
+        override val font get() = this@ClickGuiScreen.font
+        override val accent get() = this@ClickGuiScreen.accent
+        override val colorText = COLOR_TEXT
+        override val colorTextDim = COLOR_TEXT_DIM
+        override val colorTrackOff = COLOR_TRACK_OFF
+        override var modeDropdown: ModeSetting?
+            get() = this@ClickGuiScreen.modeDropdown
+            set(value) { this@ClickGuiScreen.modeDropdown = value }
+        override var keybindTarget: KeybindSetting?
+            get() = this@ClickGuiScreen.keybindTarget
+            set(value) { this@ClickGuiScreen.keybindTarget = value }
+        override fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, extra: Float) =
+            this@ClickGuiScreen.fill(context, x0, y0, x1, y1, color, extra)
+        override fun text(str: String, x: Int, y: Int, color: Int, extra: Float) =
+            this@ClickGuiScreen.text(context, str, x, y, color, extra)
+    }
+
+    /** [SettingRow.ClickCtx] view of this screen's state -- lighter than [settingCtx], needs no live [GuiGraphicsExtractor]. */
+    private val clickCtx: SettingRow.ClickCtx = object : SettingRow.ClickCtx {
+        override var modeDropdown: ModeSetting?
+            get() = this@ClickGuiScreen.modeDropdown
+            set(value) { this@ClickGuiScreen.modeDropdown = value }
+        override var keybindTarget: KeybindSetting?
+            get() = this@ClickGuiScreen.keybindTarget
+            set(value) { this@ClickGuiScreen.keybindTarget = value }
     }
 
     // --- Small drawing helpers ---------------------------------------------
@@ -526,10 +509,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     private fun drawToggle(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, anim: Float, extra: Float = 1f) {
-        fill(context, x, y, x + w, y + h, lerpColor(COLOR_TRACK_OFF, accent, anim), extra)
-        val knobD = h - 4
-        val knobX = x + 2 + ((w - knobD - 4) * anim).toInt()
-        fill(context, knobX, y + 2, knobX + knobD, y + h - 2, if (anim > 0.5f) 0xFF0B0D0F.toInt() else COLOR_TEXT_FAINT, extra)
+        SettingRow.drawToggle(settingCtx(context), x, y, w, h, anim, extra)
     }
 
     private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
@@ -691,34 +671,24 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         val x = listX + 20
         val x1 = listX + listWidth - 6
 
-        // Clicking any setting other than the ModeSetting whose dropdown is
-        // currently open closes that dropdown -- an "outside click" close,
-        // just expressed in terms of which row got hit instead of geometry
-        // now that the dropdown is inline rather than a floating popup.
-        if (setting !== modeDropdown) modeDropdown = null
-
-        when (setting) {
-            is BoolSetting -> setting.value = !setting.value
-            is ModeSetting -> {
-                modeDropdown = if (modeDropdown == setting) null else setting
-            }
-            is KeybindSetting -> keybindTarget = setting
-            is ColorSetting -> {
+        return SettingRow.handleClick(
+            clickCtx,
+            setting,
+            openColorPicker = { cs ->
                 val gy = guiY
                 // row is in unscrolled "content space" (see mouseClicked) --
                 // shift back to screen space so the popup anchors where the
                 // row actually appears, not where it'd be unscrolled.
                 val screenBottom = row.bottom - listScrollOffset
-                colorPicker.open(setting, x1 - ColorPickerPopup.WIDTH, screenBottom + 2, guiX, gy + CHROME_HEIGHT, guiX + guiWidth, gy + guiHeight)
-            }
-            is SliderSetting -> {
-                draggingSlider = setting
+                colorPicker.open(cs, x1 - ColorPickerPopup.WIDTH, screenBottom + 2, guiX, gy + CHROME_HEIGHT, guiX + guiWidth, gy + guiHeight)
+            },
+            startSliderDrag = { slider ->
+                draggingSlider = slider
                 dragBarLeft = x
                 dragBarWidth = (x1 - x).coerceAtLeast(20)
-                applySliderDrag(setting, mouseX, dragBarLeft, dragBarWidth)
-            }
-        }
-        return true
+                applySliderDrag(slider, mouseX, dragBarLeft, dragBarWidth)
+            },
+        )
     }
 
     override fun mouseDragged(click: MouseButtonEvent, deltaX: Double, deltaY: Double): Boolean {
@@ -809,8 +779,5 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         return super.keyPressed(input)
     }
 
-    private fun keyName(keyCode: Int): String {
-        if (keyCode == GLFW.GLFW_KEY_UNKNOWN) return "NONE"
-        return GLFW.glfwGetKeyName(keyCode, 0)?.uppercase() ?: "KEY_$keyCode"
-    }
+    private fun keyName(keyCode: Int): String = SettingRow.keyName(keyCode)
 }
