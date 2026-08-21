@@ -17,32 +17,33 @@ import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 
 /**
- * Alternate "Meteor Client style" ClickGUI layout: a left category rail, a
- * flat scrollable module list (no accordion -- clicking a row *selects* it
- * instead of expanding inline), and a right-side panel showing the
- * selected module's settings. Switchable from the accordion [ClickGuiScreen]
- * via [ClientSettings.guiStyle] (see the gear-icon toggle in [SettingsScreen]).
+ * "Meteor Client style" ClickGUI: every [Category] rendered as its own
+ * bordered column, side by side, all visible at once -- no rail, no
+ * tab-switching, no accordion. Each column has a coloured header (name +
+ * `[count]`) and a flat list of module rows directly underneath. Left-click
+ * a row to toggle the module immediately; right-click opens a floating
+ * settings panel beside that column (closes on click-outside or Escape).
+ * Switchable from the accordion [ClickGuiScreen] via [ClientSettings.guiStyle].
  *
  * Per-setting-type rendering/click-handling is shared with [ClickGuiScreen]
- * through [SettingRow] -- this screen only owns the layout (rail + flat
- * list + side panel) around it, not a second copy of the BoolSetting/
- * SliderSetting/ModeSetting/KeybindSetting/ColorSetting logic.
+ * through [SettingRow] -- this screen only owns the column layout and the
+ * floating panel's positioning around it.
  */
 class MeteorGuiScreen : Screen(Component.literal("Aero")) {
 
     private companion object {
-        const val MAX_GUI_WIDTH = 460
-        const val MAX_GUI_HEIGHT = 260
-        const val MIN_GUI_WIDTH = 360
-        const val MIN_GUI_HEIGHT = 200
-        const val CHROME_HEIGHT = 20
+        const val TOP_Y = 22
+        const val COL_WIDTH = 132
+        const val COL_GAP = 6
+        const val COL_MARGIN = 8
+        const val HEADER_HEIGHT = 16
+        const val ROW_HEIGHT = 14
+        const val ROW_GAP = 1
 
-        const val SEARCH_HEIGHT = 18
-        const val CAT_HEIGHT = 18
-        const val ROW_HEIGHT = 18
-        const val ROW_GAP = 2
+        const val PANEL_WIDTH = 160
+        const val PANEL_GAP = 4
 
-        const val COLOR_DIM = 0x38000000.toInt()
+        const val COLOR_DIM = 0x20000000.toInt()
         const val COLOR_BORDER = 0x50FFFFFF.toInt()
         const val COLOR_ROW_HOVER = 0x20FFFFFF.toInt()
         const val COLOR_TRACK_OFF = 0x50FFFFFF.toInt()
@@ -56,29 +57,23 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     private val accent get() = (0xFF shl 24) or Theme.accent
-    private val colorBg get() = (0xB2 shl 24) or Theme.BACKGROUND
-    private val colorRail get() = (0xB2 shl 24) or Theme.darkenedBackground(0.10f)
-    private val colorPanel get() = (0xB2 shl 24) or Theme.darkenedBackground(0.10f)
+    private val colorColumnBg get() = (0xA0 shl 24) or Theme.darkenedBackground(0.10f)
+    private val colorHeaderBg get() = (0xE6 shl 24) or Theme.accent
+    private val colorPanelBg get() = (0xE6 shl 24) or Theme.darkenedBackground(0.10f)
     private val colorChrome get() = (0xC0 shl 24) or Theme.darkenedBackground(0.20f)
-    private val colorFieldBg get() = (0xC8 shl 24) or Theme.darkenedBackground(0.22f)
     private val colorRowSelected get() = (0x2A shl 24) or Theme.accent
 
-    private var guiX = 0
-    private var guiY = 0
-    private var guiWidth = MAX_GUI_WIDTH
-    private var guiHeight = MAX_GUI_HEIGHT
-    private var railWidth = 0
-    private var listWidth = 0
-    private var panelWidth = 0
+    /** Left edge of each column, keyed by category, recomputed in [init]. */
+    private val columnX = LinkedHashMap<Category, Int>()
 
-    private var selectedCategory: Category = Category.MOVEMENT
-    private var showFavourites = false
+    /** Per-column scroll offset (pixels), keyed by category. */
+    private val scrollOffset = HashMap<Category, Int>()
 
-    /** The module whose settings the side panel currently shows, or null if none/empty. */
-    private var selectedModule: Module? = null
-
-    private var searchFocused = false
-    private var searchQuery = ""
+    /** Module whose floating settings panel is currently open, or null. */
+    private var panelModule: Module? = null
+    private var panelX = 0
+    private var panelY = 0
+    private var panelScrollOffset = 0
 
     private var keybindTarget: KeybindSetting? = null
     private var moduleKeybindTarget: Module? = null
@@ -96,20 +91,15 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     private val colorPicker = ColorPickerPopup()
     private var modeDropdown: ModeSetting? = null
 
-    private var listScrollOffset = 0
-    private var panelScrollOffset = 0
-
     override fun isPauseScreen(): Boolean = false
 
     override fun init() {
-        guiHeight = (height * 0.40f).toInt().coerceIn(MIN_GUI_HEIGHT, MAX_GUI_HEIGHT).coerceAtMost(height - 8)
-        guiWidth = (guiHeight * 16 / 9).coerceIn(MIN_GUI_WIDTH, MAX_GUI_WIDTH).coerceAtMost(width - 8)
-        railWidth = (guiWidth * 0.22f).toInt().coerceAtLeast(76)
-        panelWidth = (guiWidth * 0.34f).toInt().coerceAtLeast(120)
-        listWidth = guiWidth - railWidth - panelWidth
-
-        guiX = (width - guiWidth) / 2
-        guiY = (height - guiHeight) / 2
+        columnX.clear()
+        var x = COL_MARGIN
+        for (category in Category.entries) {
+            columnX[category] = x
+            x += COL_WIDTH + COL_GAP
+        }
     }
 
     override fun onClose() {
@@ -120,22 +110,16 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         super.onClose()
     }
 
-    // --- Data ---------------------------------------------------------------
+    // --- Data -------------------------------------------------------------
 
-    private fun visibleModules(): List<Module> {
-        if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim()
-            return ModuleManager.all().filter { it.name.contains(q, ignoreCase = true) }.sortedBy { it.name }
-        }
-        if (showFavourites) {
-            return ModuleManager.all().filter { it.pinned }.sortedBy { it.name }
-        }
-        return ModuleManager.byCategory(selectedCategory)
-    }
+    private fun columnBottom(): Int = height - COL_MARGIN
 
-    private fun panelRows(): List<Row> {
-        val module = selectedModule ?: return emptyList()
-        var y = panelTop()
+    private fun columnHeaderY(): Int = TOP_Y
+
+    private fun columnListTop(): Int = TOP_Y + HEADER_HEIGHT + 2
+
+    private fun panelRows(module: Module): List<Row> {
+        var y = panelHeaderBottom()
         val rows = mutableListOf<Row>()
         for (setting in module.settings) {
             val h = SettingRow.heightFor(setting)
@@ -156,14 +140,39 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         return rows
     }
 
-    private fun panelTop(): Int = guiY + CHROME_HEIGHT + 24
-    private fun panelViewportTop(): Int = guiY + CHROME_HEIGHT + 22
-    private fun panelViewportBottom(): Int = guiY + guiHeight - 4
+    private fun panelHeaderBottom(): Int = panelY + 18
+    private fun panelViewportBottom(): Int = (panelY + panelHeight(panelModule)).coerceAtMost(height - 4)
+    private fun panelHeight(module: Module?): Int {
+        if (module == null) return 40
+        val rows = panelRowsUnclamped(module)
+        val contentHeight = (rows.lastOrNull()?.bottom ?: panelHeaderBottom()) - panelY
+        return (contentHeight + 6).coerceAtMost(height - 16)
+    }
 
-    private fun listViewportTop(): Int = guiY + CHROME_HEIGHT + 22
-    private fun listViewportBottom(): Int = guiY + guiHeight - 4
+    /** [panelRows] but laid out from y=0 rather than the live [panelY] -- used only to measure total content height. */
+    private fun panelRowsUnclamped(module: Module): List<Row> {
+        var y = 18
+        val rows = mutableListOf<Row>()
+        for (setting in module.settings) {
+            val h = SettingRow.heightFor(setting)
+            rows.add(Row(y, y + h, module, setting))
+            y += h + ROW_GAP
+            if (setting is ModeSetting && setting == modeDropdown) {
+                for (option in setting.options) {
+                    rows.add(Row(y, y + 14, module, setting, isDropdownOption = true, dropdownOption = option))
+                    y += 14
+                }
+                y += ROW_GAP
+            }
+        }
+        if (module is XrayModule && module.settings.any { it.name == "Mode" && it.value == "Custom" }) {
+            rows.add(Row(y, y + SettingRow.SETTING_ROW_HEIGHT, module, null, isEditListButton = true))
+            y += SettingRow.SETTING_ROW_HEIGHT + ROW_GAP
+        }
+        return rows
+    }
 
-    // --- Render ---------------------------------------------------------------
+    // --- Render -------------------------------------------------------------
 
     override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
@@ -173,24 +182,20 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         }
 
         val eased = easeOutCubic(windowAnim)
-        val slide = ((1f - eased) * 6).toInt()
         context.fill(0, 0, width, height, scaleAlpha(COLOR_DIM, eased))
 
-        val gy = guiY + slide
-        fill(context, guiX, gy, guiX + guiWidth, gy + guiHeight, colorBg)
-        renderChrome(context, gy, mouseX, mouseY)
+        renderChrome(context, mouseX, mouseY)
 
-        renderRail(context, gy, mouseX, mouseY)
-        renderModuleList(context, gy, mouseX, mouseY)
-        renderSettingsPanel(context, gy, mouseX, mouseY)
+        for (category in Category.entries) {
+            renderColumn(context, category, mouseX, mouseY)
+        }
 
-        val listX = guiX + railWidth
-        fill(context, listX, gy + CHROME_HEIGHT, listX + 1, gy + guiHeight, COLOR_BORDER)
-        val panelX = guiX + railWidth + listWidth
-        fill(context, panelX, gy + CHROME_HEIGHT, panelX + 1, gy + guiHeight, COLOR_BORDER)
+        panelModule?.let { module ->
+            renderPanel(context, module, mouseX, mouseY)
+        }
 
         if (colorPicker.isOpen) {
-            Scissor.clip(context, guiX, gy, guiX + guiWidth, gy + guiHeight) {
+            Scissor.clip(context, 0, 0, width, height) {
                 colorPicker.render(context, mouseX, mouseY)
             }
         }
@@ -209,174 +214,109 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderChrome(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
-        fill(context, guiX, gy, guiX + guiWidth, gy + CHROME_HEIGHT, colorChrome)
-        text(context, "AERO", guiX + 8, gy + 6, COLOR_TEXT_DIM)
+    private fun renderChrome(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        fill(context, 0, 0, width, TOP_Y - 2, colorChrome)
+        text(context, "AERO", COL_MARGIN, 6, COLOR_TEXT_DIM)
 
-        val gearX = guiX + guiWidth - 16
-        val gearY = gy + 5
+        val gearX = width - 16
+        val gearY = 5
         val gearHovered = mouseX in (gearX - 3)..(gearX + 11) && mouseY in (gearY - 3)..(gearY + 11)
         text(context, "⚙", gearX, gearY, if (gearHovered) accent else COLOR_TEXT_DIM)
     }
 
-    private fun renderRail(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
-        val railX = guiX
-        val railTop = gy + CHROME_HEIGHT
-        fill(context, railX, railTop, railX + railWidth, gy + guiHeight, colorRail)
+    private fun renderColumn(context: GuiGraphicsExtractor, category: Category, mouseX: Int, mouseY: Int) {
+        val x0 = columnX[category] ?: return
+        val x1 = x0 + COL_WIDTH
+        if (x0 > width) return
 
-        val sx = railX + 6
-        val sy = railTop + 6
-        val sw = railWidth - 12
-        fill(context, sx, sy, sx + sw, sy + SEARCH_HEIGHT, colorFieldBg)
-        if (searchFocused) drawBorder(context, sx, sy, sw, SEARCH_HEIGHT, accent)
-        val searchLabel = when {
-            searchQuery.isNotEmpty() -> searchQuery
-            searchFocused -> "|"
-            else -> "Search..."
-        }
-        text(context, searchLabel, sx + 5, sy + 5, if (searchQuery.isNotEmpty() || searchFocused) COLOR_TEXT else COLOR_TEXT_FAINT)
+        val headerY = columnHeaderY()
+        val listTop = columnListTop()
+        val listBottom = columnBottom()
 
-        var y = sy + SEARCH_HEIGHT + 6
+        fill(context, x0, headerY, x1, listBottom, colorColumnBg)
+        drawBorder(context, x0, headerY, COL_WIDTH, listBottom - headerY, COLOR_BORDER)
 
-        if (anyFavourites()) {
-            val selected = showFavourites && searchQuery.isBlank()
-            val hAnim = animatedHover("tab:favourites", mouseX in railX..(railX + railWidth) && mouseY in y..(y + CAT_HEIGHT))
-            renderTab(context, sx, sw, y, "Favourites", selected, hAnim)
-            y += CAT_HEIGHT
-        }
+        // Header bar: accent-tinted, category name left, [count] right.
+        fill(context, x0, headerY, x1, headerY + HEADER_HEIGHT, colorHeaderBg)
+        val modules = ModuleManager.byCategory(category)
+        val name = prettyCategory(category)
+        text(context, name, x0 + 5, headerY + 4, COLOR_TEXT)
+        val countLabel = "[${modules.size}]"
+        text(context, countLabel, x1 - font.width(countLabel) - 5, headerY + 4, COLOR_TEXT)
 
-        for (category in Category.entries) {
-            val selected = category == selectedCategory && !showFavourites && searchQuery.isBlank()
-            val hAnim = animatedHover(category, mouseX in railX..(railX + railWidth) && mouseY in y..(y + CAT_HEIGHT))
-            renderTab(context, sx, sw, y, prettyCategory(category), selected, hAnim)
-            y += CAT_HEIGHT
-        }
-    }
+        val contentBottom = listTop + modules.size * (ROW_HEIGHT + ROW_GAP)
+        val maxScroll = (contentBottom - listTop - (listBottom - listTop)).coerceAtLeast(0)
+        val off = (scrollOffset[category] ?: 0).coerceIn(0, maxScroll)
+        scrollOffset[category] = off
 
-    private fun renderTab(context: GuiGraphicsExtractor, sx: Int, sw: Int, y: Int, label: String, selected: Boolean, hoverAnim: Float) {
-        if (selected) {
-            fill(context, sx, y, sx + sw, y + CAT_HEIGHT - 2, colorRowSelected)
-        } else if (hoverAnim > 0.02f) {
-            fill(context, sx, y, sx + sw, y + CAT_HEIGHT - 2, scaleAlpha(COLOR_ROW_HOVER, hoverAnim))
-        }
-        text(context, label, sx + 6, y + 4, if (selected) COLOR_TEXT else COLOR_TEXT_DIM)
-    }
-
-    private fun anyFavourites(): Boolean = ModuleManager.all().any { it.pinned }
-
-    private fun renderModuleList(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
-        val listX = guiX + railWidth
-        val headerY = gy + CHROME_HEIGHT + 6
-        val headerText = when {
-            searchQuery.isNotBlank() -> searchQuery.trim()
-            showFavourites -> "Favourites"
-            else -> prettyCategory(selectedCategory)
-        }
-        text(context, headerText.uppercase(), listX + 8, headerY, COLOR_TEXT_FAINT)
-
-        val modules = visibleModules()
-        val viewportTop = listViewportTop()
-        val viewportBottom = listViewportBottom()
-        val contentBottom = viewportTop + modules.size * (ROW_HEIGHT + ROW_GAP)
-        val maxScroll = (contentBottom - viewportTop - (viewportBottom - viewportTop)).coerceAtLeast(0)
-        listScrollOffset = listScrollOffset.coerceIn(0, maxScroll)
-
-        Scissor.clip(context, listX, viewportTop, listX + listWidth, viewportBottom) {
-            var y = viewportTop + 2 - listScrollOffset
+        Scissor.clip(context, x0, listTop, x1, listBottom) {
+            var y = listTop + 1 - off
             for (module in modules) {
                 val top = y
                 val bottom = y + ROW_HEIGHT
                 y += ROW_HEIGHT + ROW_GAP
-                if (bottom < viewportTop || top > viewportBottom) continue
-                renderModuleRow(context, module, top, bottom, mouseX, mouseY)
+                if (bottom < listTop || top > listBottom) continue
+                renderModuleRow(context, module, x0, x1, top, bottom, mouseX, mouseY)
             }
         }
 
         if (modules.isEmpty()) {
-            val msg = if (showFavourites) "No pinned modules yet" else "No modules found"
-            text(context, msg, listX + (listWidth - font.width(msg)) / 2, gy + guiHeight / 2, COLOR_TEXT_FAINT)
+            val msg = "Empty"
+            text(context, msg, x0 + (COL_WIDTH - font.width(msg)) / 2, (listTop + listBottom) / 2, COLOR_TEXT_FAINT)
         }
     }
 
-    private fun renderModuleRow(context: GuiGraphicsExtractor, module: Module, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
-        val listX = guiX + railWidth
-        val x0 = listX + 6
-        val x1 = listX + listWidth - 6
-        val selected = module == selectedModule
-        val hovered = mouseX in x0..x1 && mouseY in top..bottom
+    private fun renderModuleRow(context: GuiGraphicsExtractor, module: Module, x0: Int, x1: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
+        val rowX0 = x0 + 2
+        val rowX1 = x1 - 2
+        val hovered = mouseX in rowX0..rowX1 && mouseY in top..bottom
         val hAnim = animatedHover(module, hovered)
-
         val anim = animatedFor(module)
 
-        if (selected) {
-            fill(context, x0, top, x1, bottom, colorRowSelected)
+        if (module == panelModule) {
+            fill(context, rowX0, top, rowX1, bottom, colorRowSelected)
         } else if (hAnim > 0.02f) {
-            fill(context, x0, top, x1, bottom, scaleAlpha(COLOR_ROW_HOVER, hAnim))
+            fill(context, rowX0, top, rowX1, bottom, scaleAlpha(COLOR_ROW_HOVER, hAnim))
         }
 
-        var rx = x1 - 3
-        val toggleW = 16
-        rx -= toggleW
-        SettingRow.drawToggle(rowCtx(context), rx, top + (ROW_HEIGHT - 9) / 2, toggleW, 9, anim)
-
-        if (module.keybind != GLFW.GLFW_KEY_UNKNOWN || module == moduleKeybindTarget) {
-            rx -= 3
-            val kbLabel = if (module == moduleKeybindTarget) "..." else SettingRow.keyName(module.keybind)
-            val kbWidth = font.width(kbLabel) + 5
-            rx -= kbWidth
-            text(context, kbLabel, rx + 3, top + (ROW_HEIGHT - 8) / 2, COLOR_TEXT_FAINT)
-            rx -= 2
-        }
-
-        rx -= 12
-        val pinGlyph = if (module.pinned) "★" else "☆"
-        text(context, pinGlyph, rx, top + (ROW_HEIGHT - 8) / 2, if (module.pinned) accent else COLOR_TEXT_FAINT)
-
-        val nameLimit = rx - 6
-        val textX = x0 + 6
-        val textY = top + (ROW_HEIGHT - 8) / 2
-        val nameColor = if (anim > 0.5f) COLOR_TEXT else COLOR_TEXT_DIM
-        val name = clipToWidth(module.name, nameLimit - textX)
-        text(context, name, textX, textY, nameColor)
+        val nameColor = if (anim > 0.5f) accent else COLOR_TEXT_DIM
+        val name = clipToWidth(module.name, rowX1 - rowX0 - 6)
+        text(context, name, rowX0 + 4, top + (ROW_HEIGHT - 8) / 2, nameColor)
     }
 
-    private fun renderSettingsPanel(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
-        val panelX = guiX + railWidth + listWidth
-        fill(context, panelX, gy + CHROME_HEIGHT, panelX + panelWidth, gy + guiHeight, colorPanel)
+    private fun renderPanel(context: GuiGraphicsExtractor, module: Module, mouseX: Int, mouseY: Int) {
+        val ph = panelHeight(module)
+        panelY = panelY.coerceIn(TOP_Y, (height - ph - 4).coerceAtLeast(TOP_Y))
+        val px1 = panelX + PANEL_WIDTH
 
-        val module = selectedModule
-        val headerY = gy + CHROME_HEIGHT + 6
-        if (module == null) {
-            val msg = "Select a module"
-            text(context, msg, panelX + (panelWidth - font.width(msg)) / 2, gy + guiHeight / 2, COLOR_TEXT_FAINT)
-            return
-        }
-        text(context, module.name.uppercase(), panelX + 8, headerY, COLOR_TEXT_FAINT)
+        fill(context, panelX, panelY, px1, panelY + ph, colorPanelBg)
+        drawBorder(context, panelX, panelY, PANEL_WIDTH, ph, COLOR_BORDER)
+        text(context, module.name.uppercase(), panelX + 6, panelY + 5, COLOR_TEXT_FAINT)
 
-        val viewportTop = panelViewportTop()
+        val viewportTop = panelHeaderBottom()
         val viewportBottom = panelViewportBottom()
-        val rows = panelRows()
+        val rows = panelRows(module)
         val contentBottom = rows.lastOrNull()?.bottom ?: viewportTop
         val maxScroll = (contentBottom - viewportTop - (viewportBottom - viewportTop)).coerceAtLeast(0)
         panelScrollOffset = panelScrollOffset.coerceIn(0, maxScroll)
 
-        val px = panelX + 8
-        val px1 = panelX + panelWidth - 6
-
         if (rows.isEmpty()) {
             val msg = "No settings"
-            text(context, msg, panelX + (panelWidth - font.width(msg)) / 2, gy + guiHeight / 2, COLOR_TEXT_FAINT)
+            text(context, msg, panelX + (PANEL_WIDTH - font.width(msg)) / 2, panelY + ph / 2, COLOR_TEXT_FAINT)
             return
         }
 
-        Scissor.clip(context, panelX, viewportTop, panelX + panelWidth, viewportBottom) {
+        val rx = panelX + 6
+        val rx1 = px1 - 4
+
+        Scissor.clip(context, panelX, viewportTop, px1, viewportBottom) {
             for (row in rows) {
                 val shifted = row.copy(top = row.top - panelScrollOffset, bottom = row.bottom - panelScrollOffset)
                 if (shifted.bottom < viewportTop || shifted.top > viewportBottom) continue
                 when {
-                    shifted.isDropdownOption -> renderDropdownOptionRow(context, shifted, px, px1, mouseX, mouseY)
-                    shifted.isEditListButton -> renderEditListRow(context, shifted, px, px1, mouseX, mouseY)
-                    shifted.setting != null -> SettingRow.render(rowCtx(context), shifted.setting, shifted.top, px, px1)
+                    shifted.isDropdownOption -> renderDropdownOptionRow(context, shifted, rx, rx1, mouseX, mouseY)
+                    shifted.isEditListButton -> renderEditListRow(context, shifted, rx, rx1, mouseX, mouseY)
+                    shifted.setting != null -> SettingRow.render(rowCtx(context), shifted.setting, shifted.top, rx, rx1)
                 }
             }
         }
@@ -385,12 +325,11 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     private fun renderDropdownOptionRow(context: GuiGraphicsExtractor, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
         val setting = row.setting as? ModeSetting ?: return
         val option = row.dropdownOption ?: return
-        val ix = x + 8
         val selected = option == setting.value
-        val hovered = mouseX in ix..x1 && mouseY in row.top..row.bottom
-        if (selected) fill(context, ix, row.top, x1, row.bottom, colorRowSelected)
-        else if (hovered) fill(context, ix, row.top, x1, row.bottom, COLOR_ROW_HOVER)
-        text(context, option, ix + 4, row.top + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM)
+        val hovered = mouseX in x..x1 && mouseY in row.top..row.bottom
+        if (selected) fill(context, x, row.top, x1, row.bottom, colorRowSelected)
+        else if (hovered) fill(context, x, row.top, x1, row.bottom, COLOR_ROW_HOVER)
+        text(context, option, x + 4, row.top + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM)
     }
 
     private fun renderEditListRow(context: GuiGraphicsExtractor, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
@@ -462,6 +401,21 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     private fun prettyCategory(category: Category): String =
         category.name.lowercase().replaceFirstChar { it.uppercase() }
 
+    /** Opens the floating settings panel for [module], anchored beside its column -- flips to the left side if it'd clip off-screen to the right. */
+    private fun openPanel(module: Module, columnX0: Int, columnX1: Int, anchorY: Int) {
+        panelModule = module
+        modeDropdown = null
+        panelScrollOffset = 0
+        val rightX = columnX1 + PANEL_GAP
+        panelX = if (rightX + PANEL_WIDTH <= width) rightX else (columnX0 - PANEL_GAP - PANEL_WIDTH).coerceAtLeast(0)
+        panelY = anchorY.coerceIn(TOP_Y, (height - panelHeight(module) - 4).coerceAtLeast(TOP_Y))
+    }
+
+    private fun closePanel() {
+        panelModule = null
+        modeDropdown = null
+    }
+
     // --- Input ---------------------------------------------------------------
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
@@ -473,125 +427,80 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
             if (colorPicker.mouseClicked(mouseX, mouseY)) return true
         }
 
-        val gearX = guiX + guiWidth - 16
-        val gearY = guiY + 5
+        val gearX = width - 16
+        val gearY = 5
         if (mouseX in (gearX - 3).toDouble()..(gearX + 11).toDouble() && mouseY in (gearY - 3).toDouble()..(gearY + 11).toDouble()) {
             minecraft?.gui?.setScreen(SettingsScreen())
             return true
         }
 
-        val railX = guiX
-        val railTop = guiY + CHROME_HEIGHT
-        val sx = railX + 6
-        val sy = railTop + 6
-        val sw = railWidth - 12
-
-        if (mouseX in sx.toDouble()..(sx + sw).toDouble() && mouseY in sy.toDouble()..(sy + SEARCH_HEIGHT).toDouble()) {
-            searchFocused = true
-            return true
-        }
-        searchFocused = false
-
-        var y = sy + SEARCH_HEIGHT + 6
-
-        if (anyFavourites()) {
-            if (mouseX in sx.toDouble()..(sx + sw).toDouble() && mouseY in y.toDouble()..(y + CAT_HEIGHT).toDouble()) {
-                showFavourites = true
-                searchQuery = ""
+        val module = panelModule
+        if (module != null) {
+            val ph = panelHeight(module)
+            if (mouseX >= panelX && mouseX <= panelX + PANEL_WIDTH && mouseY >= panelY && mouseY <= panelY + ph) {
+                val viewportTop = panelHeaderBottom()
+                val viewportBottom = panelViewportBottom()
+                if (mouseY >= viewportTop && mouseY <= viewportBottom) {
+                    val contentMouseY = mouseY + panelScrollOffset
+                    val rx = panelX + 6
+                    val rx1 = panelX + PANEL_WIDTH - 4
+                    for (row in panelRows(module)) {
+                        if (contentMouseY < row.top || contentMouseY > row.bottom) continue
+                        if (row.isDropdownOption) {
+                            val dropdownSetting = row.setting as? ModeSetting
+                            val option = row.dropdownOption
+                            if (dropdownSetting != null && option != null) dropdownSetting.value = option
+                            modeDropdown = null
+                            return true
+                        }
+                        if (row.isEditListButton) {
+                            modeDropdown = null
+                            minecraft?.gui?.setScreen(XrayCustomScreen(row.module as XrayModule))
+                            return true
+                        }
+                        if (row.setting != null) {
+                            return handlePanelSettingClick(row, mouseX, rx, rx1)
+                        }
+                    }
+                }
                 return true
             }
-            y += CAT_HEIGHT
+            // Outside the panel -- close it, then fall through so the click
+            // can still hit whatever's underneath (e.g. another module row).
+            closePanel()
         }
 
         for (category in Category.entries) {
-            if (mouseX in sx.toDouble()..(sx + sw).toDouble() && mouseY in y.toDouble()..(y + CAT_HEIGHT).toDouble()) {
-                selectedCategory = category
-                showFavourites = false
-                searchQuery = ""
-                return true
-            }
-            y += CAT_HEIGHT
-        }
+            val x0 = columnX[category] ?: continue
+            val x1 = x0 + COL_WIDTH
+            val listTop = columnListTop()
+            val listBottom = columnBottom()
+            if (mouseX < x0 || mouseX > x1 || mouseY < listTop || mouseY > listBottom) continue
 
-        val listX = guiX + railWidth
-        val x0 = (listX + 6).toDouble()
-        val x1d = (listX + listWidth - 6).toDouble()
-        val viewportTop = listViewportTop()
-        val viewportBottom = listViewportBottom()
-        if (mouseY >= viewportTop && mouseY <= viewportBottom) {
-            val modules = visibleModules()
-            var rowY = viewportTop + 2 - listScrollOffset
-            for (module in modules) {
+            val modules = ModuleManager.byCategory(category)
+            val off = scrollOffset[category] ?: 0
+            var rowY = listTop + 1 - off
+            for (m in modules) {
                 val top = rowY
                 val bottom = rowY + ROW_HEIGHT
                 rowY += ROW_HEIGHT + ROW_GAP
-                if (mouseX < x0 || mouseX > x1d || mouseY < top || mouseY > bottom) continue
-                return handleModuleRowClick(module, mouseX, x1d.toInt())
+                if (mouseY < top || mouseY > bottom) continue
+                return handleModuleRowClick(m, click.button(), x0, x1, top)
             }
-        }
-
-        val panelX = guiX + railWidth + listWidth
-        val panelViewportTop = panelViewportTop()
-        val panelViewportBottom = panelViewportBottom()
-        if (mouseX >= panelX && mouseY >= panelViewportTop && mouseY <= panelViewportBottom) {
-            val contentMouseY = mouseY + panelScrollOffset
-            for (row in panelRows()) {
-                if (contentMouseY < row.top || contentMouseY > row.bottom) continue
-                val px = panelX + 8
-                val px1 = panelX + panelWidth - 6
-                if (row.isDropdownOption) {
-                    val dropdownSetting = row.setting as? ModeSetting
-                    val option = row.dropdownOption
-                    if (dropdownSetting != null && option != null) dropdownSetting.value = option
-                    modeDropdown = null
-                    return true
-                }
-                if (row.isEditListButton) {
-                    modeDropdown = null
-                    minecraft?.gui?.setScreen(XrayCustomScreen(row.module as XrayModule))
-                    return true
-                }
-                if (row.setting != null) {
-                    return handlePanelSettingClick(row, mouseX, px, px1)
-                }
-            }
+            return true
         }
 
         modeDropdown = null
         return super.mouseClicked(click, doubled)
     }
 
-    private fun handleModuleRowClick(module: Module, mouseX: Double, x1: Int): Boolean {
-        var rx = x1 - 3
-        val toggleW = 16
-        rx -= toggleW
-        if (mouseX >= rx && mouseX <= rx + toggleW) {
-            module.toggle()
+    private fun handleModuleRowClick(module: Module, button: Int, columnX0: Int, columnX1: Int, rowTop: Int): Boolean {
+        if (button == 1) {
+            openPanel(module, columnX0, columnX1, rowTop)
             return true
         }
-
-        if (module.keybind != GLFW.GLFW_KEY_UNKNOWN) {
-            rx -= 3
-            val kbLabel = SettingRow.keyName(module.keybind)
-            val kbWidth = font.width(kbLabel) + 5
-            rx -= kbWidth
-            if (mouseX >= rx && mouseX <= rx + kbWidth) {
-                moduleKeybindTarget = module
-                return true
-            }
-            rx -= 2
-        }
-
-        rx -= 12
-        if (mouseX >= rx && mouseX <= rx + 10) {
-            module.pinned = !module.pinned
-            if (showFavourites && !anyFavourites()) showFavourites = false
-            return true
-        }
-
-        selectedModule = module
-        modeDropdown = null
-        panelScrollOffset = 0
+        // Any other button (left-click) is a direct toggle.
+        module.toggle()
         return true
     }
 
@@ -601,10 +510,14 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
             clickCtx,
             setting,
             openColorPicker = { cs ->
-                val gy = guiY
                 val screenBottom = row.bottom - panelScrollOffset
-                val panelX = guiX + railWidth + listWidth
-                colorPicker.open(cs, (panelX + panelWidth - ColorPickerPopup.WIDTH - 6).coerceAtLeast(panelX), screenBottom + 2, guiX, gy + CHROME_HEIGHT, guiX + guiWidth, gy + guiHeight)
+                val ph = panelHeight(panelModule)
+                colorPicker.open(
+                    cs,
+                    (panelX + PANEL_WIDTH - ColorPickerPopup.WIDTH - 4).coerceAtLeast(panelX),
+                    screenBottom + 2,
+                    0, 0, width, height,
+                )
             },
             startSliderDrag = { slider ->
                 draggingSlider = slider
@@ -631,23 +544,31 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double): Boolean {
-        val listX = guiX + railWidth
-        val panelX = listX + listWidth
-        val viewportTop = listViewportTop()
-        val viewportBottom = listViewportBottom()
-        if (mouseX >= listX && mouseX < panelX && mouseY >= viewportTop && mouseY <= viewportBottom) {
-            val modules = visibleModules()
-            val contentBottom = viewportTop + modules.size * (ROW_HEIGHT + ROW_GAP)
+        val module = panelModule
+        if (module != null && mouseX >= panelX && mouseX <= panelX + PANEL_WIDTH &&
+            mouseY >= panelHeaderBottom() && mouseY <= panelViewportBottom()
+        ) {
+            val viewportTop = panelHeaderBottom()
+            val viewportBottom = panelViewportBottom()
+            val rows = panelRows(module)
+            val contentBottom = rows.lastOrNull()?.bottom ?: viewportTop
             val maxScroll = (contentBottom - viewportTop - (viewportBottom - viewportTop)).coerceAtLeast(0)
-            listScrollOffset = (listScrollOffset - (verticalAmount * 12).toInt()).coerceIn(0, maxScroll)
+            panelScrollOffset = (panelScrollOffset - (verticalAmount * 12).toInt()).coerceIn(0, maxScroll)
             return true
         }
-        if (mouseX >= panelX && mouseY >= panelViewportTop() && mouseY <= panelViewportBottom()) {
-            val rows = panelRows()
-            val pvt = panelViewportTop()
-            val contentBottom = rows.lastOrNull()?.bottom ?: pvt
-            val maxScroll = (contentBottom - pvt - (panelViewportBottom() - pvt)).coerceAtLeast(0)
-            panelScrollOffset = (panelScrollOffset - (verticalAmount * 12).toInt()).coerceIn(0, maxScroll)
+
+        for (category in Category.entries) {
+            val x0 = columnX[category] ?: continue
+            val x1 = x0 + COL_WIDTH
+            val listTop = columnListTop()
+            val listBottom = columnBottom()
+            if (mouseX < x0 || mouseX > x1 || mouseY < listTop || mouseY > listBottom) continue
+
+            val modules = ModuleManager.byCategory(category)
+            val contentBottom = listTop + modules.size * (ROW_HEIGHT + ROW_GAP)
+            val maxScroll = (contentBottom - listTop - (listBottom - listTop)).coerceAtLeast(0)
+            val off = scrollOffset[category] ?: 0
+            scrollOffset[category] = (off - (verticalAmount * 12).toInt()).coerceIn(0, maxScroll)
             return true
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
@@ -661,10 +582,6 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     override fun charTyped(input: net.minecraft.client.input.CharacterEvent): Boolean {
-        if (searchFocused) {
-            searchQuery += input.codepointAsString()
-            return true
-        }
         return super.charTyped(input)
     }
 
@@ -679,24 +596,6 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
             moduleKeybindTarget = null
             return true
         }
-        if (searchFocused) {
-            when (input.key()) {
-                GLFW.GLFW_KEY_BACKSPACE -> {
-                    if (searchQuery.isNotEmpty()) searchQuery = searchQuery.dropLast(1)
-                    return true
-                }
-                GLFW.GLFW_KEY_ESCAPE -> {
-                    searchFocused = false
-                    searchQuery = ""
-                    return true
-                }
-                GLFW.GLFW_KEY_ENTER -> {
-                    searchFocused = false
-                    return true
-                }
-            }
-            return true
-        }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             if (colorPicker.isOpen) {
                 colorPicker.close()
@@ -704,6 +603,10 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
             }
             if (modeDropdown != null) {
                 modeDropdown = null
+                return true
+            }
+            if (panelModule != null) {
+                closePanel()
                 return true
             }
             onClose()
