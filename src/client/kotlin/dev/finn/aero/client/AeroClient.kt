@@ -4,6 +4,7 @@ import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.gui.ClickGuiScreen
 import dev.finn.aero.module.ModuleManager
+import dev.finn.aero.module.impl.AutoAttributeSwap
 import dev.finn.aero.module.impl.AutoTotem
 import dev.finn.aero.module.impl.Criticals
 import dev.finn.aero.module.impl.DeathWaypoint
@@ -60,6 +61,7 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(AutoTotem())
         ModuleManager.register(Speed())
         ModuleManager.register(NoFall())
+        ModuleManager.register(AutoAttributeSwap())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()

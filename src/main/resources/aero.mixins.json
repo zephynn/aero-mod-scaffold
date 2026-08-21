@@ -9,6 +9,7 @@
     "BlockModelRendererMixin",
     "CameraMixin",
     "ChunkRendererRegionMixin",
+    "MinecraftClientAttackMixin",
     "EntityRendererMixin",
     "InputAccessor",
     "KeyboardInputMixin",
