@@ -4,9 +4,14 @@ import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.gui.ClickGuiScreen
 import dev.finn.aero.module.ModuleManager
+import dev.finn.aero.module.impl.AutoTotem
+import dev.finn.aero.module.impl.Criticals
 import dev.finn.aero.module.impl.DeathWaypoint
 import dev.finn.aero.module.impl.Freecam
 import dev.finn.aero.module.impl.Fullbright
+import dev.finn.aero.module.impl.KillAura
+import dev.finn.aero.module.impl.NoFall
+import dev.finn.aero.module.impl.Speed
 import dev.finn.aero.module.impl.Sprint
 import dev.finn.aero.module.impl.esp.ChestEsp
 import dev.finn.aero.module.impl.esp.EntityEsp
@@ -50,6 +55,11 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(ChestEsp())
         ModuleManager.register(DeathWaypoint())
         ModuleManager.register(XrayModule())
+        ModuleManager.register(KillAura())
+        ModuleManager.register(Criticals())
+        ModuleManager.register(AutoTotem())
+        ModuleManager.register(Speed())
+        ModuleManager.register(NoFall())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
