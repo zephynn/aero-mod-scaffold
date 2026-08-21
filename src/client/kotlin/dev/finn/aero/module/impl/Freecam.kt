@@ -10,9 +10,23 @@ import dev.finn.aero.setting.SliderSetting
  * WASD input while active, so the actual entity never moves -- only the
  * render camera does.
  *
- * This module just owns enable/disable state and the Speed setting; the
- * actual per-frame movement math lives in CameraMixin (Java), since it
- * needs to run at render rate, not the 20/s tick rate onTick() gets.
+ * chunkCullingEnabled ("smartCull" in some other mods, e.g. the MIT
+ * https://github.com/MinecraftFreecam/Freecam) is what makes vanilla
+ * spectator mode able to see caves/terrain behind walls around the camera:
+ * normally the renderer's visibility graph assumes the camera can't be
+ * standing inside solid blocks and culls geometry accordingly, which looks
+ * like "walls block your view" the moment freecam pushes the camera through
+ * one. Turning it off while freecam is active gets the same see-everything
+ * behaviour spectator mode has.
+ *
+ * Keeping the real player stationary is done with Entity.setNoGravity(),
+ * not the flying ability -- setNoGravity is purely local client-side
+ * simulation state that's never sent to the server. The flying ability, by
+ * contrast, is announced with a real PlayerAbilitiesC2SPacket, and most
+ * anti-cheat plugins treat an unauthorized "flying = true" from a
+ * non-creative player as a fly-hack signal. This gets the same "the entity
+ * doesn't fall while the camera wanders off" result without that packet
+ * ever going out.
  */
 class Freecam : Module(
     name = "Freecam",
@@ -30,32 +44,32 @@ class Freecam : Module(
         ),
     )
 
-    private var wasFlying = false
-    private var wasAllowFlying = false
+    private var wasNoGravity = false
+    private var wasChunkCullingEnabled = true
 
     override fun onEnable() {
         val player = mc.player ?: return
-        FreecamState.position = mc.gameRenderer.camera.cameraPos
+        FreecamState.position = player.eyePos
         FreecamState.speed = speed.value
         FreecamState.active = true
 
-        // Flying stops gravity from pulling the (now-stationary) player
-        // down; KeyboardInputMixin is what actually stops it from walking.
-        wasFlying = player.abilities.flying
-        wasAllowFlying = player.abilities.allowFlying
-        player.abilities.allowFlying = true
-        player.abilities.flying = true
-        player.sendAbilitiesUpdate()
+        wasChunkCullingEnabled = mc.chunkCullingEnabled
+        mc.chunkCullingEnabled = false
+
+        // Local-only: stops gravity from pulling the (now-stationary) player
+        // down without telling the server it's flying. KeyboardInputMixin is
+        // what actually stops it from walking.
+        wasNoGravity = player.hasNoGravity()
+        player.setNoGravity(true)
     }
 
     override fun onDisable() {
         FreecamState.active = false
         FreecamState.position = null
+        mc.chunkCullingEnabled = wasChunkCullingEnabled
 
         val player = mc.player ?: return
-        player.abilities.flying = wasFlying
-        player.abilities.allowFlying = wasAllowFlying
-        player.sendAbilitiesUpdate()
+        player.setNoGravity(wasNoGravity)
     }
 
     override fun onTick() {
