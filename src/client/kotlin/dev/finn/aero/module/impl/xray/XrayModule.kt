@@ -18,6 +18,9 @@ import net.minecraft.client.render.RenderTickCounter
 import net.minecraft.util.math.Box
 import net.minecraft.util.math.BlockPos
 
+/** Fixed alpha used for non-target terrain when [XrayModule]'s "Terrain Opacity" toggle is on. */
+private const val TERRAIN_VISIBLE_OPACITY = 0.35f
+
 /**
  * Real terrain X-Ray: unlike [dev.finn.aero.module.impl.esp.ChestEsp] (a
  * pure overlay), this actually culls non-target blocks out of the chunk
@@ -31,7 +34,7 @@ class XrayModule : Module(
     category = Category.RENDER,
 ) {
     private val mode = register(ModeSetting("Mode", "What X-Ray reveals.", listOf("Ores", "Base Finder", "Custom"), "Ores"))
-    private val terrainOpacity = register(SliderSetting("Terrain Opacity", "How see-through non-target terrain is (0 = fully culled, 1 = fully opaque).", 0.0, 0.0, 1.0, 0.05))
+    private val terrainOpacity = register(BoolSetting("Terrain Opacity", "When off, non-target terrain is fully culled. When on, it's see-through instead of invisible.", false))
     private val highlightStyle = register(ModeSetting("Highlight Style", "How found blocks are drawn. 'None' relies on terrain transparency alone.", listOf("Outline", "Solid", "Both", "None"), "Outline"))
     private val highlightColor = register(ColorSetting("Highlight Color", "Default highlight colour.", 0xFF55FF55.toInt()))
     private val baseFinderRadius = register(SliderSetting("Base Finder Radius", "Distance to join nearby indicators into one cluster.", 6.0, 1.0, 24.0, 1.0))
@@ -47,7 +50,7 @@ class XrayModule : Module(
     private var tickCounter = 0
     private var lastClusterCount = -1
     private var lastMode = ""
-    private var lastOpacity = -1f
+    private var lastOpacity = false
 
     /** Set true by a setting change; consumed (and cleared) by the next tick's scan, which also re-publishes XrayState + reloads chunks. */
     private var targetsDirty = true
@@ -55,8 +58,8 @@ class XrayModule : Module(
     override fun onEnable() {
         publishTargets()
         XrayState.active = true
-        XrayState.terrainOpacity = terrainOpacity.value.toFloat()
-        lastOpacity = terrainOpacity.value.toFloat()
+        XrayState.terrainOpacity = if (terrainOpacity.value) TERRAIN_VISIBLE_OPACITY else 0f
+        lastOpacity = terrainOpacity.value
         XrayState.requestChunkReload()
         NotificationManager.show("X-Ray", "${mode.value} mode enabled", NotificationType.INFO)
         lastMode = mode.value
@@ -83,10 +86,10 @@ class XrayModule : Module(
             targetsDirty = false
         }
 
-        val opacityNow = terrainOpacity.value.toFloat()
+        val opacityNow = terrainOpacity.value
         if (opacityNow != lastOpacity) {
             lastOpacity = opacityNow
-            XrayState.terrainOpacity = opacityNow
+            XrayState.terrainOpacity = if (opacityNow) TERRAIN_VISIBLE_OPACITY else 0f
             XrayState.requestChunkReload()
         }
 

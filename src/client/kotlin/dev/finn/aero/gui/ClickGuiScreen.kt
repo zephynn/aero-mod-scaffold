@@ -78,7 +78,6 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         const val COLOR_TEXT_FAINT = 0xFF4C4F55.toInt()
 
         const val DROPDOWN_ROW_HEIGHT = 14
-        const val DROPDOWN_MAX_VISIBLE_ROWS = 6
 
         /** Micro-interaction step (per-frame): hover fades, toggle knobs, dropdown reveal. Snappy on purpose. */
         const val ANIM_FAST = 0.55f
@@ -138,12 +137,18 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
     /** Photoshop-style popup opened when a ColorSetting row is clicked, replacing the old preset-cycling behaviour. */
     private val colorPicker = ColorPickerPopup()
 
-    /** ModeSetting currently showing its expanded option dropdown, plus the anchor geometry it was opened with. */
+    /**
+     * ModeSetting currently showing its expanded option list. Unlike the
+     * colour picker, this renders *inline* in [buildRows] (pushing every
+     * row below it down), not as a floating overlay -- that's what keeps
+     * it from getting drawn over by (or drawn over) the settings
+     * underneath it, and lets it share the module list's own clip+scroll
+     * instead of needing its own.
+     */
     private var modeDropdown: ModeSetting? = null
-    private var modeDropdownX = 0
-    private var modeDropdownY = 0
-    private var modeDropdownW = 0
-    private var modeDropdownScroll = 0
+
+    /** Scroll offset (pixels) for the whole module list -- content shifts up by this much before clipping to the panel. */
+    private var listScrollOffset = 0
 
     override fun shouldPause(): Boolean = false
 
@@ -180,6 +185,9 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         val categoryLabel: String?,
         /** True for the special "Edit List..." row X-Ray's Custom mode gets instead of a generic Setting -- see class kdoc. */
         val isEditListButton: Boolean = false,
+        /** True for one option row of an expanded ModeSetting's inline dropdown -- [setting] is the owning ModeSetting, [dropdownOption] is this row's option string. */
+        val isDropdownOption: Boolean = false,
+        val dropdownOption: String? = null,
     )
 
     private fun visibleModules(): List<Pair<Module, String?>> {
@@ -209,6 +217,17 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
                     val h = settingRowHeight(setting)
                     rows.add(Row(y, y + h, module, setting, null))
                     y += h + ROW_GAP
+                    // Inline dropdown: the expanded ModeSetting's options are
+                    // just more rows right here, so every row below shifts
+                    // down to make room instead of the dropdown floating on
+                    // top of (and being clipped by) them.
+                    if (setting is ModeSetting && setting == modeDropdown) {
+                        for (option in setting.options) {
+                            rows.add(Row(y, y + DROPDOWN_ROW_HEIGHT, module, setting, null, isDropdownOption = true, dropdownOption = option))
+                            y += DROPDOWN_ROW_HEIGHT
+                        }
+                        y += ROW_GAP
+                    }
                 }
                 if (module is XrayModule && module.settings.any { it.name == "Mode" && it.value == "Custom" }) {
                     rows.add(Row(y, y + SETTING_ROW_HEIGHT, module, null, null, isEditListButton = true))
@@ -242,9 +261,9 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         val listX = guiX + railWidth
         fill(context, listX, gy + CHROME_HEIGHT, listX + 1, gy + guiHeight, COLOR_BORDER)
 
-        // Popups render last, on top of everything else, each clipped to
-        // the panel bounds so neither can spill outside the GUI window.
-        renderModeDropdown(context, gy, mouseX, mouseY)
+        // The colour picker still floats as a genuine popup (it's opened
+        // from a fixed-height row, doesn't push content around) -- clipped
+        // to the panel bounds so it can't spill outside the GUI window.
         if (colorPicker.isOpen) {
             Scissor.clip(context, guiX, gy, guiX + guiWidth, gy + guiHeight) {
                 colorPicker.render(context, mouseX, mouseY)
@@ -252,31 +271,8 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         }
     }
 
-    private fun renderModeDropdown(context: DrawContext, gy: Int, mouseX: Int, mouseY: Int) {
-        val setting = modeDropdown ?: return
-        val panelTop = gy + CHROME_HEIGHT
-        val panelBottom = gy + guiHeight
-
-        val visibleRows = ((panelBottom - modeDropdownY) / DROPDOWN_ROW_HEIGHT).coerceIn(1, DROPDOWN_MAX_VISIBLE_ROWS)
-        val listHeight = visibleRows * DROPDOWN_ROW_HEIGHT
-        modeDropdownScroll = modeDropdownScroll.coerceIn(0, (setting.options.size - visibleRows).coerceAtLeast(0))
-
-        Scissor.clip(context, guiX, panelTop, guiX + guiWidth, panelBottom) {
-            context.fill(modeDropdownX, modeDropdownY, modeDropdownX + modeDropdownW, modeDropdownY + listHeight, colorFieldBg)
-            drawBorder(context, modeDropdownX, modeDropdownY, modeDropdownW, listHeight, COLOR_BORDER)
-
-            var oy = modeDropdownY
-            for (i in modeDropdownScroll until (modeDropdownScroll + visibleRows).coerceAtMost(setting.options.size)) {
-                val option = setting.options[i]
-                val selected = option == setting.value
-                val hovered = mouseX in modeDropdownX..(modeDropdownX + modeDropdownW) && mouseY in oy..(oy + DROPDOWN_ROW_HEIGHT)
-                if (selected) context.fill(modeDropdownX, oy, modeDropdownX + modeDropdownW, oy + DROPDOWN_ROW_HEIGHT, colorRowSelected)
-                else if (hovered) context.fill(modeDropdownX, oy, modeDropdownX + modeDropdownW, oy + DROPDOWN_ROW_HEIGHT, COLOR_ROW_HOVER)
-                context.drawTextWithShadow(textRenderer, option, modeDropdownX + 4, oy + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM)
-                oy += DROPDOWN_ROW_HEIGHT
-            }
-        }
-    }
+    private fun listViewportTop(): Int = guiY + CHROME_HEIGHT + 22
+    private fun listViewportBottom(): Int = guiY + guiHeight - 4
 
     private fun advanceWindowAnim() {
         val target = if (closing) 0f else 1f
@@ -359,11 +355,26 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         }
         text(context, headerText.uppercase(), listX + 8, headerY, COLOR_TEXT_FAINT)
 
-        for (row in buildRows()) {
-            when {
-                row.isEditListButton -> renderEditListRow(context, row, mouseX, mouseY)
-                row.setting == null -> renderModuleHeaderRow(context, row, mouseX, mouseY)
-                else -> renderSettingRow(context, row, mouseX, mouseY)
+        val rows = buildRows()
+        val viewportTop = listViewportTop()
+        val viewportBottom = listViewportBottom()
+        val contentBottom = rows.lastOrNull()?.bottom ?: viewportTop
+        val maxScroll = (contentBottom - viewportTop - (viewportBottom - viewportTop)).coerceAtLeast(0)
+        listScrollOffset = listScrollOffset.coerceIn(0, maxScroll)
+
+        // Everything below the header -- module rows, expanded settings,
+        // and any inline ModeSetting dropdown -- is one clipped, scrollable
+        // region so nothing can render outside the panel or get cut off.
+        Scissor.clip(context, listX, viewportTop, listX + listWidth, viewportBottom) {
+            for (row in rows) {
+                val shifted = row.copy(top = row.top - listScrollOffset, bottom = row.bottom - listScrollOffset)
+                if (shifted.bottom < viewportTop || shifted.top > viewportBottom) continue
+                when {
+                    shifted.isDropdownOption -> renderDropdownOptionRow(context, shifted, mouseX, mouseY)
+                    shifted.isEditListButton -> renderEditListRow(context, shifted, mouseX, mouseY)
+                    shifted.setting == null -> renderModuleHeaderRow(context, shifted, mouseX, mouseY)
+                    else -> renderSettingRow(context, shifted, mouseX, mouseY)
+                }
             }
         }
 
@@ -371,6 +382,23 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
             val msg = if (showFavourites) "No pinned modules yet" else "No modules found"
             text(context, msg, listX + (listWidth - textRenderer.getWidth(msg)) / 2, gy + guiHeight / 2, COLOR_TEXT_FAINT)
         }
+    }
+
+    /** One option row of an expanded ModeSetting's inline dropdown -- indented further than a normal setting row to read as nested under it. */
+    private fun renderDropdownOptionRow(context: DrawContext, row: Row, mouseX: Int, mouseY: Int) {
+        val setting = row.setting as? ModeSetting ?: return
+        val option = row.dropdownOption ?: return
+        val listX = guiX + railWidth
+        val x = listX + 28
+        val x1 = listX + listWidth - 6
+        val extra = animatedExpand(row.module)
+        if (extra <= 0.02f) return
+
+        val selected = option == setting.value
+        val hovered = mouseX in x..x1 && mouseY in row.top..row.bottom
+        if (selected) fill(context, x, row.top, x1, row.bottom, colorRowSelected, extra)
+        else if (hovered) fill(context, x, row.top, x1, row.bottom, COLOR_ROW_HOVER, extra)
+        text(context, option, x + 4, row.top + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM, extra)
     }
 
     private fun renderModuleHeaderRow(context: DrawContext, row: Row, mouseX: Int, mouseY: Int) {
@@ -469,7 +497,7 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
             }
             is ModeSetting -> {
                 text(context, setting.name, x, row.top + 5, COLOR_TEXT_DIM, extra)
-                val label = setting.value
+                val label = (if (setting == modeDropdown) "▾ " else "▸ ") + setting.value
                 text(context, label, x1 - textRenderer.getWidth(label), row.top + 5, COLOR_TEXT, extra)
             }
             is KeybindSetting -> {
@@ -539,14 +567,11 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         val mouseX = click.x()
         val mouseY = click.y()
 
-        // Popups take priority over everything underneath them -- an
-        // outside click just closes them (falling through to normal
+        // The colour picker popup takes priority over everything underneath
+        // it -- an outside click just closes it (falling through to normal
         // handling below) rather than being swallowed.
         if (colorPicker.isOpen) {
             if (colorPicker.mouseClicked(mouseX, mouseY)) return true
-        }
-        if (modeDropdown != null) {
-            if (handleModeDropdownClick(mouseX, mouseY)) return true
         }
 
         val gearX = guiX + guiWidth - 16
@@ -592,44 +617,41 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         val listX = guiX + railWidth
         val x0 = (listX + 6).toDouble()
         val x1d = (listX + listWidth - 6).toDouble()
-        for (row in buildRows()) {
-            if (mouseX < x0 || mouseX > x1d || mouseY < row.top || mouseY > row.bottom) continue
+        val viewportTop = listViewportTop()
+        val viewportBottom = listViewportBottom()
+        if (mouseY >= viewportTop && mouseY <= viewportBottom) {
+            // Rows are laid out in unscrolled "content space" by buildRows();
+            // translate the real (screen-space) click down by the current
+            // scroll offset before comparing against them.
+            val contentMouseY = mouseY + listScrollOffset
+            for (row in buildRows()) {
+                if (mouseX < x0 || mouseX > x1d || contentMouseY < row.top || contentMouseY > row.bottom) continue
 
-            if (row.isEditListButton) {
-                client?.setScreen(XrayCustomScreen(row.module as XrayModule))
-                return true
+                if (row.isDropdownOption) {
+                    val dropdownSetting = row.setting as? ModeSetting
+                    val option = row.dropdownOption
+                    if (dropdownSetting != null && option != null) dropdownSetting.value = option
+                    modeDropdown = null
+                    return true
+                }
+                if (row.isEditListButton) {
+                    modeDropdown = null
+                    client?.setScreen(XrayCustomScreen(row.module as XrayModule))
+                    return true
+                }
+                if (row.setting == null) {
+                    return handleHeaderClick(row.module, mouseX, x1d.toInt())
+                }
+                return handleSettingClick(row, mouseX)
             }
-            if (row.setting == null) {
-                return handleHeaderClick(row.module, mouseX, x1d.toInt())
-            }
-            return handleSettingClick(row, mouseX)
-        }
-
-        return super.mouseClicked(click, doubled)
-    }
-
-    /** True if the click hit the open dropdown (an option, or inside it) -- consumed either way; a click fully outside closes it without consuming. */
-    private fun handleModeDropdownClick(mouseX: Double, mouseY: Double): Boolean {
-        val setting = modeDropdown ?: return false
-        val gy = guiY
-        val panelBottom = gy + guiHeight
-        val visibleRows = ((panelBottom - modeDropdownY) / DROPDOWN_ROW_HEIGHT).coerceIn(1, DROPDOWN_MAX_VISIBLE_ROWS)
-        val listHeight = visibleRows * DROPDOWN_ROW_HEIGHT
-
-        if (mouseX >= modeDropdownX && mouseX <= modeDropdownX + modeDropdownW && mouseY >= modeDropdownY && mouseY <= modeDropdownY + listHeight) {
-            val row = ((mouseY - modeDropdownY) / DROPDOWN_ROW_HEIGHT).toInt() + modeDropdownScroll
-            if (row in setting.options.indices) {
-                setting.value = setting.options[row]
-            }
-            modeDropdown = null
-            return true
         }
 
         modeDropdown = null
-        return false
+        return super.mouseClicked(click, doubled)
     }
 
     private fun handleHeaderClick(module: Module, mouseX: Double, x1: Int): Boolean {
+        modeDropdown = null
         var rx = x1 - 3
         val toggleW = 16
         rx -= toggleW
@@ -669,23 +691,25 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
         val x = listX + 20
         val x1 = listX + listWidth - 6
 
+        // Clicking any setting other than the ModeSetting whose dropdown is
+        // currently open closes that dropdown -- an "outside click" close,
+        // just expressed in terms of which row got hit instead of geometry
+        // now that the dropdown is inline rather than a floating popup.
+        if (setting !== modeDropdown) modeDropdown = null
+
         when (setting) {
             is BoolSetting -> setting.value = !setting.value
             is ModeSetting -> {
-                if (modeDropdown == setting) {
-                    modeDropdown = null
-                } else {
-                    modeDropdown = setting
-                    modeDropdownX = x
-                    modeDropdownY = row.bottom + 2
-                    modeDropdownW = (x1 - x).coerceAtLeast(60)
-                    modeDropdownScroll = 0
-                }
+                modeDropdown = if (modeDropdown == setting) null else setting
             }
             is KeybindSetting -> keybindTarget = setting
             is ColorSetting -> {
                 val gy = guiY
-                colorPicker.open(setting, x1 - ColorPickerPopup.WIDTH, row.bottom + 2, guiX, gy + CHROME_HEIGHT, guiX + guiWidth, gy + guiHeight)
+                // row is in unscrolled "content space" (see mouseClicked) --
+                // shift back to screen space so the popup anchors where the
+                // row actually appears, not where it'd be unscrolled.
+                val screenBottom = row.bottom - listScrollOffset
+                colorPicker.open(setting, x1 - ColorPickerPopup.WIDTH, screenBottom + 2, guiX, gy + CHROME_HEIGHT, guiX + guiWidth, gy + guiHeight)
             }
             is SliderSetting -> {
                 draggingSlider = setting
@@ -713,9 +737,14 @@ class ClickGuiScreen : Screen(Text.literal("Aero")) {
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double): Boolean {
-        val setting = modeDropdown
-        if (setting != null && mouseX >= modeDropdownX && mouseX <= modeDropdownX + modeDropdownW) {
-            modeDropdownScroll -= verticalAmount.toInt()
+        val listX = guiX + railWidth
+        val viewportTop = listViewportTop()
+        val viewportBottom = listViewportBottom()
+        if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= viewportTop && mouseY <= viewportBottom) {
+            val rows = buildRows()
+            val contentBottom = rows.lastOrNull()?.bottom ?: viewportTop
+            val maxScroll = (contentBottom - viewportTop - (viewportBottom - viewportTop)).coerceAtLeast(0)
+            listScrollOffset = (listScrollOffset - (verticalAmount * 12).toInt()).coerceIn(0, maxScroll)
             return true
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
