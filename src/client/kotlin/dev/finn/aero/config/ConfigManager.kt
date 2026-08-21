@@ -62,7 +62,15 @@ object ConfigManager {
         val clientJson = JsonObject()
         clientJson.addProperty("guiKeybind", ClientSettings.guiKeybind)
         clientJson.addProperty("reducedMotion", ClientSettings.reducedMotion)
+        clientJson.addProperty("notificationPosition", ClientSettings.notificationPosition)
+        clientJson.addProperty("notificationDurationMs", ClientSettings.notificationDurationMs)
         root.add("client", clientJson)
+
+        val xrayJson = com.google.gson.JsonArray()
+        for (id in dev.finn.aero.module.impl.xray.XrayCustomConfig.blockIds()) {
+            xrayJson.add(id)
+        }
+        root.add("xray", xrayJson)
 
         try {
             Files.createDirectories(configPath.parent)
@@ -86,6 +94,13 @@ object ConfigManager {
             root.getAsJsonObject("client")?.let { clientJson ->
                 clientJson.get("guiKeybind")?.asInt?.let { ClientSettings.guiKeybind = it }
                 clientJson.get("reducedMotion")?.asBoolean?.let { ClientSettings.reducedMotion = it }
+                clientJson.get("notificationPosition")?.asString?.let { ClientSettings.notificationPosition = it }
+                clientJson.get("notificationDurationMs")?.asLong?.let { ClientSettings.notificationDurationMs = it }
+            }
+
+            root.getAsJsonArray("xray")?.let { xrayJson ->
+                val ids = xrayJson.mapNotNull { it.asString }
+                dev.finn.aero.module.impl.xray.XrayCustomConfig.setBlockIds(ids)
             }
 
             val modulesJson = root.getAsJsonObject("modules") ?: return
