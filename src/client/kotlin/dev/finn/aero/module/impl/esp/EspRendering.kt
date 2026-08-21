@@ -39,6 +39,40 @@ object EspRendering {
     }
 
     /**
+     * A filled box -- six quad faces -- for X-Ray's "Solid"/"Both"
+     * highlight style, drawn into [EspRenderLayers.NO_DEPTH_QUADS]. [color]
+     * carries the alpha (X-Ray's "Terrain Opacity" setting folds into it
+     * before calling this) rather than taking a separate alpha parameter,
+     * matching how [drawBox]'s own color already carries full ARGB.
+     */
+    fun drawSolidBox(matrices: MatrixStack, buffer: VertexConsumer, camPos: Vec3d, box: Box, color: Int) {
+        val x0 = (box.minX - camPos.x).toFloat()
+        val y0 = (box.minY - camPos.y).toFloat()
+        val z0 = (box.minZ - camPos.z).toFloat()
+        val x1 = (box.maxX - camPos.x).toFloat()
+        val y1 = (box.maxY - camPos.y).toFloat()
+        val z1 = (box.maxZ - camPos.z).toFloat()
+        val entry = matrices.peek()
+
+        fun quad(ax: Float, ay: Float, az: Float, bx: Float, by: Float, bz: Float, cx: Float, cy: Float, cz: Float, dx: Float, dy: Float, dz: Float) {
+            buffer.vertex(entry, ax, ay, az).color(color)
+            buffer.vertex(entry, bx, by, bz).color(color)
+            buffer.vertex(entry, cx, cy, cz).color(color)
+            buffer.vertex(entry, dx, dy, dz).color(color)
+        }
+
+        // -Y / +Y
+        quad(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1)
+        quad(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0)
+        // -X / +X
+        quad(x0, y0, z1, x0, y0, z0, x0, y1, z0, x0, y1, z1)
+        quad(x1, y0, z0, x1, y0, z1, x1, y1, z1, x1, y1, z0)
+        // -Z / +Z
+        quad(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0)
+        quad(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1)
+    }
+
+    /**
      * A solid line in screen space, from ([x0],[y0]) to ([x1],[y1]) -- one thin
      * filled rectangle, rotated to match the line's angle via DrawContext's own
      * 2D matrix stack, the same technique Meteor's tracer uses. DrawContext has

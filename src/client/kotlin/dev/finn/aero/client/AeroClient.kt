@@ -11,6 +11,8 @@ import dev.finn.aero.module.impl.Sprint
 import dev.finn.aero.module.impl.esp.ChestEsp
 import dev.finn.aero.module.impl.esp.EntityEsp
 import dev.finn.aero.module.impl.esp.PlayerEsp
+import dev.finn.aero.module.impl.xray.XrayModule
+import dev.finn.aero.notification.NotificationManager
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
@@ -47,6 +49,7 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(PlayerEsp())
         ModuleManager.register(ChestEsp())
         ModuleManager.register(DeathWaypoint())
+        ModuleManager.register(XrayModule())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
@@ -74,6 +77,7 @@ object AeroClient : ClientModInitializer {
         // ModuleManager the same way tick/keybinds already are.
         HudRenderCallback.EVENT.register { context, tickCounter ->
             ModuleManager.onHudRender(context, tickCounter)
+            NotificationManager.onHudRender(context, tickCounter)
         }
         WorldRenderEvents.AFTER_ENTITIES.register { context ->
             ModuleManager.onWorldRender(context)

@@ -32,6 +32,18 @@ import net.minecraft.client.render.RenderSetup
 object EspRenderLayers {
     val NO_DEPTH_LINES: RenderLayer by lazy { buildNoDepthLines() }
 
+    /**
+     * Filled-quad no-depth layer for X-Ray's "Solid"/"Both" highlight
+     * style. Unlike [NO_DEPTH_LINES], this doesn't need reflection:
+     * RenderPipelines.DEBUG_QUADS is a *finished* public RenderPipeline
+     * (no private snippet field backs it the way RENDERTYPE_LINES_SNIPPET
+     * does for lines), and RenderPipeline itself exposes public getters
+     * for every field a Snippet needs -- so this just re-wraps
+     * DEBUG_QUADS's own settings into a Snippet, then builds a copy with
+     * depth testing/writing turned off on top.
+     */
+    val NO_DEPTH_QUADS: RenderLayer by lazy { buildNoDepthQuads() }
+
     private fun buildNoDepthLines(): RenderLayer {
         return try {
             val snippetField = RenderPipelines::class.java.getDeclaredField("RENDERTYPE_LINES_SNIPPET")
@@ -55,6 +67,48 @@ object EspRenderLayers {
         } catch (e: Exception) {
             AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP line layer, falling back to depth-tested lines (ESP won't show through walls).", e)
             RenderLayers.lines()
+        }
+    }
+
+    private fun buildNoDepthQuads(): RenderLayer {
+        return try {
+            val base = RenderPipelines.DEBUG_QUADS
+
+            val snippet = RenderPipeline.Snippet(
+                java.util.Optional.of(base.vertexShader),
+                java.util.Optional.of(base.fragmentShader),
+                java.util.Optional.of(base.shaderDefines),
+                java.util.Optional.of(base.samplers),
+                java.util.Optional.of(base.uniforms),
+                base.blendFunction,
+                java.util.Optional.of(base.depthTestFunction),
+                java.util.Optional.of(base.polygonMode),
+                java.util.Optional.of(base.isCull),
+                java.util.Optional.of(base.isWriteColor),
+                java.util.Optional.of(base.isWriteAlpha),
+                java.util.Optional.of(base.isWriteDepth),
+                java.util.Optional.of(base.colorLogic),
+                java.util.Optional.of(base.vertexFormat),
+                java.util.Optional.of(base.vertexFormatMode),
+            )
+
+            val pipeline = RenderPipeline.builder(snippet)
+                .withLocation("aero/pipeline/esp_quads_no_depth")
+                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                .withDepthWrite(false)
+                .build()
+
+            val renderSetup = RenderSetup.builder(pipeline).build()
+
+            val ctor = RenderLayer::class.java.getDeclaredConstructor(String::class.java, RenderSetup::class.java)
+            ctor.isAccessible = true
+            val layer = ctor.newInstance("aero_esp_quads_no_depth", renderSetup) as RenderLayer
+
+            AeroClient.LOGGER.info("Aero: built no-depth ESP quad layer.")
+            layer
+        } catch (e: Exception) {
+            AeroClient.LOGGER.warn("Aero: couldn't build a no-depth ESP quad layer, falling back to depth-tested filled box.", e)
+            RenderLayers.debugFilledBox()
         }
     }
 }

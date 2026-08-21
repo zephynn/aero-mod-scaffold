@@ -6,7 +6,9 @@
     "defaultRequire": 1
   },
   "client": [
+    "BlockModelRendererMixin",
     "CameraMixin",
+    "ChunkRendererRegionMixin",
     "EntityRendererMixin",
     "InputAccessor",
     "KeyboardInputMixin",
