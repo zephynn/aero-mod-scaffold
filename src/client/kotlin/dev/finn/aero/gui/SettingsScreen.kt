@@ -3,6 +3,7 @@ package dev.finn.aero.gui
 import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.config.Theme
+import dev.finn.aero.setting.ColorSetting
 import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
@@ -52,6 +53,12 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
     private val hoverAnim = HashMap<Any, Float>()
 
+    /** Photoshop-style popup opened by the "custom" accent swatch, same component ClickGuiScreen's ColorSettings use. */
+    private val colorPicker = ColorPickerPopup()
+
+    /** Live-bound while the picker's open -- Theme.accent is synced from this every frame the popup is open. */
+    private var accentColorSetting: ColorSetting? = null
+
     private val colorChrome get() = (0xD0 shl 24) or Theme.darkenedBackground(0.20f)
     private val colorFieldBg get() = (0xC8 shl 24) or Theme.darkenedBackground(0.22f)
     private val colorBg get() = (0xC0 shl 24) or Theme.darkenedBackground(0f)
@@ -97,6 +104,16 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         y = renderNotificationDurationRow(context, y, mouseX, mouseY)
         y += 6
         renderResetButton(context, y, mouseX, mouseY)
+
+        if (colorPicker.isOpen) {
+            // Live-apply while dragging, same as ClickGuiScreen's ColorSetting
+            // popups do -- Theme.accent isn't itself a Setting, so this is
+            // the sync point instead of the popup writing straight into it.
+            accentColorSetting?.let { Theme.accent = it.value and 0x00FFFFFF }
+            Scissor.clip(context, guiX, gy, guiX + WIDTH, gy + HEIGHT) {
+                colorPicker.render(context, mouseX, mouseY)
+            }
+        }
     }
 
     private fun advanceWindowAnim() {
@@ -137,6 +154,23 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
                 drawBorder(context, sx - 2, y - 2, SWATCH_SIZE + 4, SWATCH_SIZE + 4, scaleAlpha(COLOR_BORDER, hAnim))
             }
         }
+
+        // "Custom" swatch, right after the presets -- always shows the
+        // *current* accent (so it still looks selected/consistent even when
+        // that colour isn't one of the fixed presets) and opens the same
+        // SV-square + hue-slider popup ColorSettings use in the ClickGUI.
+        val customIndex = Theme.ACCENT_PRESETS.size
+        val customX = x + customIndex * (SWATCH_SIZE + SWATCH_GAP)
+        val customSelected = Theme.accent !in Theme.ACCENT_PRESETS
+        val customHover = animatedHover("swatch:custom", mouseX in customX..(customX + SWATCH_SIZE) && mouseY in y..(y + SWATCH_SIZE))
+        fill(context, customX, y, customX + SWATCH_SIZE, y + SWATCH_SIZE, (0xFF shl 24) or Theme.accent)
+        text(context, "+", customX + SWATCH_SIZE / 2 - 2, y + SWATCH_SIZE / 2 - 4, if (customSelected) COLOR_TEXT else COLOR_TEXT_DIM)
+        if (customSelected) {
+            drawBorder(context, customX - 2, y - 2, SWATCH_SIZE + 4, SWATCH_SIZE + 4, COLOR_TEXT)
+        } else if (customHover > 0.02f) {
+            drawBorder(context, customX - 2, y - 2, SWATCH_SIZE + 4, SWATCH_SIZE + 4, scaleAlpha(COLOR_BORDER, customHover))
+        }
+
         return y + SWATCH_SIZE + 8
     }
 
@@ -246,6 +280,19 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         val mouseX = click.x()
         val mouseY = click.y()
 
+        // Popup takes priority, same pattern as ClickGuiScreen -- covers
+        // both an explicit close (the X) and an outside click (which
+        // closes it without consuming, so the click still falls through
+        // to whatever it actually hit below).
+        if (colorPicker.isOpen) {
+            val consumed = colorPicker.mouseClicked(mouseX, mouseY)
+            if (!colorPicker.isOpen && accentColorSetting != null) {
+                accentColorSetting = null
+                ConfigManager.save()
+            }
+            if (consumed) return true
+        }
+
         if (mouseX in guiX.toDouble()..(guiX + 16).toDouble() && mouseY in guiY.toDouble()..(guiY + CHROME_HEIGHT).toDouble()) {
             client?.setScreen(ClickGuiScreen())
             return true
@@ -261,6 +308,15 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
                 ConfigManager.save()
                 return true
             }
+        }
+
+        val customIndex = Theme.ACCENT_PRESETS.size
+        val customX = x + customIndex * (SWATCH_SIZE + SWATCH_GAP)
+        if (mouseX in customX.toDouble()..(customX + SWATCH_SIZE).toDouble() && mouseY in swatchesY.toDouble()..(swatchesY + SWATCH_SIZE).toDouble()) {
+            val setting = ColorSetting("Accent", "Accent colour.", (0xFF shl 24) or Theme.accent)
+            accentColorSetting = setting
+            colorPicker.open(setting, customX, swatchesY + SWATCH_SIZE + 4, guiX, guiY + CHROME_HEIGHT, guiX + WIDTH, guiY + HEIGHT)
+            return true
         }
         y += 12 + SWATCH_SIZE + 8 + 6
 
@@ -322,6 +378,19 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return super.mouseClicked(click, doubled)
     }
 
+    override fun mouseDragged(click: Click, deltaX: Double, deltaY: Double): Boolean {
+        if (colorPicker.isOpen && colorPicker.mouseDragged(click.x(), click.y())) return true
+        return super.mouseDragged(click, deltaX, deltaY)
+    }
+
+    override fun mouseReleased(click: Click): Boolean {
+        if (colorPicker.mouseReleased()) {
+            ConfigManager.save()
+            return true
+        }
+        return super.mouseReleased(click)
+    }
+
     override fun keyPressed(input: KeyInput): Boolean {
         if (rebindingGuiKey) {
             ClientSettings.guiKeybind = input.key()
@@ -330,6 +399,12 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
             return true
         }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+            if (colorPicker.isOpen) {
+                colorPicker.close()
+                accentColorSetting = null
+                ConfigManager.save()
+                return true
+            }
             close()
             return true
         }
