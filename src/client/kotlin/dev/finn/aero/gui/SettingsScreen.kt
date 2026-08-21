@@ -24,7 +24,7 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
     private companion object {
         const val WIDTH = 220
-        const val HEIGHT = 172
+        const val HEIGHT = 208
         const val CHROME_HEIGHT = 20
         const val ROW_HEIGHT = 20
 
@@ -93,6 +93,9 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         y = renderKeybindRow(context, y, mouseX, mouseY)
         y = renderReducedMotionRow(context, y, mouseX, mouseY)
         y += 6
+        y = renderNotificationPositionRow(context, y, mouseX, mouseY)
+        y = renderNotificationDurationRow(context, y, mouseX, mouseY)
+        y += 6
         renderResetButton(context, y, mouseX, mouseY)
     }
 
@@ -160,6 +163,33 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
+    private fun renderNotificationPositionRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+        val x = guiX + 12
+        val w = WIDTH - 24
+        text(context, "NOTIFICATIONS", x, y + 5, COLOR_TEXT_FAINT)
+        val label = ClientSettings.notificationPosition
+        val chipW = textRenderer.getWidth(label) + 10
+        val chipX = x + w - chipW
+        val chipY = y + 2
+        fill(context, chipX, chipY, chipX + chipW, chipY + 12, colorFieldBg)
+        text(context, label, chipX + 5, chipY + 2, COLOR_TEXT)
+        return y + ROW_HEIGHT
+    }
+
+    private fun renderNotificationDurationRow(context: DrawContext, y: Int, mouseX: Int, mouseY: Int): Int {
+        val x = guiX + 12
+        val w = WIDTH - 24
+        text(context, "DURATION", x, y + 5, COLOR_TEXT_DIM)
+        val label = "${ClientSettings.notificationDurationMs / 1000.0}s"
+        text(context, label, x + w - textRenderer.getWidth(label) - 24, y + 5, COLOR_TEXT)
+
+        val minusX = x + w - 20
+        val plusX = x + w - 8
+        text(context, "-", minusX, y + 5, COLOR_TEXT_DIM)
+        text(context, "+", plusX, y + 5, COLOR_TEXT_DIM)
+        return y + ROW_HEIGHT
+    }
+
     private fun renderResetButton(context: DrawContext, y: Int, mouseX: Int, mouseY: Int) {
         val x = guiX + 12
         val w = WIDTH - 24
@@ -195,43 +225,14 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
         fill(context, knobX, y + 2, knobX + knobD, y + h - 2, if (anim > 0.5f) 0xFF0B0D0F.toInt() else COLOR_TEXT_FAINT)
     }
 
-    private fun lerpColor(from: Int, to: Int, t: Float): Int {
-        val tt = t.coerceIn(0f, 1f)
-        fun ch(v: Int, shift: Int) = (v ushr shift) and 0xFF
-        val r = (ch(from, 16) + (ch(to, 16) - ch(from, 16)) * tt).toInt()
-        val g = (ch(from, 8) + (ch(to, 8) - ch(from, 8)) * tt).toInt()
-        val b = (ch(from, 0) + (ch(to, 0) - ch(from, 0)) * tt).toInt()
-        val a = (ch(from, 24) + (ch(to, 24) - ch(from, 24)) * tt).toInt()
-        return (a shl 24) or (r shl 16) or (g shl 8) or b
-    }
+    private fun lerpColor(from: Int, to: Int, t: Float): Int = Anim.lerpColor(from, to, t)
 
-    private fun animatedHover(key: Any, hovered: Boolean): Float {
-        val target = if (hovered) 1f else 0f
-        if (ClientSettings.reducedMotion) {
-            hoverAnim[key] = target
-            return target
-        }
-        val current = hoverAnim[key] ?: target
-        val next = when {
-            current < target -> (current + ANIM_FAST).coerceAtMost(target)
-            current > target -> (current - ANIM_FAST).coerceAtLeast(target)
-            else -> current
-        }
-        hoverAnim[key] = next
-        return next
-    }
+    private fun animatedHover(key: Any, hovered: Boolean): Float =
+        Anim.advance(hoverAnim, key, if (hovered) 1f else 0f, ANIM_FAST)
 
-    private fun easeOutCubic(t: Float): Float {
-        val tt = t.coerceIn(0f, 1f)
-        val inv = 1f - tt
-        return 1f - inv * inv * inv
-    }
+    private fun easeOutCubic(t: Float): Float = Anim.easeOutCubic(t)
 
-    private fun scaleAlpha(color: Int, scale: Float): Int {
-        val a = (color ushr 24) and 0xFF
-        val newA = (a * scale.coerceIn(0f, 1f)).toInt().coerceIn(0, 0xFF)
-        return (newA shl 24) or (color and 0x00FFFFFF)
-    }
+    private fun scaleAlpha(color: Int, scale: Float): Int = Anim.scaleAlpha(color, scale)
 
     private fun keyName(keyCode: Int): String {
         if (keyCode == GLFW.GLFW_KEY_UNKNOWN) return "NONE"
@@ -276,6 +277,35 @@ class SettingsScreen : Screen(Text.literal("Aero Settings")) {
 
         if (mouseX in (x + w - 24).toDouble()..(x + w).toDouble() && mouseY in (y + 3).toDouble()..(y + 15).toDouble()) {
             ClientSettings.reducedMotion = !ClientSettings.reducedMotion
+            ConfigManager.save()
+            return true
+        }
+        y += ROW_HEIGHT + 6
+
+        // Notification position chip.
+        val posLabel = ClientSettings.notificationPosition
+        val posChipW = textRenderer.getWidth(posLabel) + 10
+        val posChipX = x + w - posChipW
+        val posChipY = y + 2
+        if (mouseX in posChipX.toDouble()..(posChipX + posChipW).toDouble() && mouseY in posChipY.toDouble()..(posChipY + 12).toDouble()) {
+            val positions = ClientSettings.NOTIFICATION_POSITIONS
+            val i = positions.indexOf(ClientSettings.notificationPosition)
+            ClientSettings.notificationPosition = positions[(i + 1) % positions.size]
+            ConfigManager.save()
+            return true
+        }
+        y += ROW_HEIGHT
+
+        // Notification duration -/+.
+        val minusX = x + w - 20
+        val plusX = x + w - 8
+        if (mouseX in minusX.toDouble()..(minusX + 8).toDouble() && mouseY in y.toDouble()..(y + 10).toDouble()) {
+            ClientSettings.notificationDurationMs = (ClientSettings.notificationDurationMs - 500).coerceAtLeast(1000)
+            ConfigManager.save()
+            return true
+        }
+        if (mouseX in plusX.toDouble()..(plusX + 8).toDouble() && mouseY in y.toDouble()..(y + 10).toDouble()) {
+            ClientSettings.notificationDurationMs = (ClientSettings.notificationDurationMs + 500).coerceAtMost(15000)
             ConfigManager.save()
             return true
         }
