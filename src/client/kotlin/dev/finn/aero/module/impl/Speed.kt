@@ -13,6 +13,13 @@ import kotlin.math.sqrt
  * so this just takes that direction and stretches/shrinks its magnitude to
  * the configured blocks/second -- vertical velocity (jumping, falling) is
  * left untouched.
+ *
+ * Only does this while the player is actually holding a movement key.
+ * Releasing WASD still leaves a tick or two of small residual velocity
+ * from vanilla's own momentum/friction -- gating on *input*, not just
+ * "is velocity nonzero", is what lets that residual actually decay
+ * instead of getting re-inflated back up to full speed every tick
+ * forever (which is what made it feel like the player couldn't stop).
  */
 class Speed : Module(
     name = "Speed",
@@ -32,6 +39,9 @@ class Speed : Module(
 
     override fun onTick() {
         val player = mc.player ?: return
+        val input = player.input.movementInput
+        if (input.x == 0f && input.y == 0f) return
+
         val vel = player.velocity
         val horizontal = sqrt(vel.x * vel.x + vel.z * vel.z)
         if (horizontal < 0.001) return
