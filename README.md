@@ -74,15 +74,14 @@ Aero is a client-only mod (no server-side code), so everything lives under
 
 ## Known limitations / what's not built yet
 
-- Modules implemented so far: Sprint, Speed, Fly, NoFall, Freecam, Zoom,
-  Fullbright, KillAura, Criticals, AutoTotem, AutoAttributeSwap,
-  AntiKnockback, Nuker, DeathWaypoint, HUD Info, Tracers, and ESP
-  (Player/Entity/Chest) plus X-Ray — all wired up end-to-end (GUI, config,
-  keybinds).
-- Not yet built: Scaffold, Jesus (water walk), Spider (wall climb),
-  Aimbot/TriggerBot as a KillAura alternative, Nametags, AutoLoot/ChestStealer.
-  Add them the same way as everything else — one file + one registration
-  line in `AeroClient.kt`.
+- Modules implemented so far: Sprint, Speed, Fly, Scaffold, Jesus, Spider,
+  NoFall, Freecam, Fullbright, KillAura, Criticals, AutoTotem,
+  AutoAttributeSwap, AntiKnockback, Nuker, DeathWaypoint, HUD Info, and
+  ESP (Player/Entity/Chest) plus X-Ray — all wired up end-to-end (GUI,
+  config, keybinds).
+- Not yet built: Aimbot/TriggerBot as a KillAura alternative, Nametags,
+  AutoLoot/ChestStealer. Add them the same way as everything else — one
+  file + one registration line in `AeroClient.kt`.
 - The full ClickGUI (Meteor-style side-by-side category columns), a command
   palette (Alt+RightShift), and a settings screen are all built. The
   `Setting` sealed class stays generic so new setting types only need one
