@@ -14,13 +14,14 @@ import dev.finn.aero.module.impl.Fly
 import dev.finn.aero.module.impl.Freecam
 import dev.finn.aero.module.impl.Fullbright
 import dev.finn.aero.module.impl.HudInfo
+import dev.finn.aero.module.impl.Jesus
 import dev.finn.aero.module.impl.KillAura
 import dev.finn.aero.module.impl.NoFall
 import dev.finn.aero.module.impl.Nuker
+import dev.finn.aero.module.impl.Scaffold
 import dev.finn.aero.module.impl.Speed
+import dev.finn.aero.module.impl.Spider
 import dev.finn.aero.module.impl.Sprint
-import dev.finn.aero.module.impl.Tracers
-import dev.finn.aero.module.impl.Zoom
 import dev.finn.aero.module.impl.esp.ChestEsp
 import dev.finn.aero.module.impl.esp.EntityEsp
 import dev.finn.aero.module.impl.esp.PlayerEsp
@@ -73,10 +74,11 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(AutoAttributeSwap())
         ModuleManager.register(Fly())
         ModuleManager.register(Nuker())
-        ModuleManager.register(Tracers())
-        ModuleManager.register(Zoom())
         ModuleManager.register(AntiKnockback())
         ModuleManager.register(HudInfo())
+        ModuleManager.register(Scaffold())
+        ModuleManager.register(Jesus())
+        ModuleManager.register(Spider())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
