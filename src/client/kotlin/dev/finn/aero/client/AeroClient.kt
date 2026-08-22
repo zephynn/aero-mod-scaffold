@@ -5,16 +5,22 @@ import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.gui.CommandPaletteScreen
 import dev.finn.aero.gui.GuiOpener
 import dev.finn.aero.module.ModuleManager
+import dev.finn.aero.module.impl.AntiKnockback
 import dev.finn.aero.module.impl.AutoAttributeSwap
 import dev.finn.aero.module.impl.AutoTotem
 import dev.finn.aero.module.impl.Criticals
 import dev.finn.aero.module.impl.DeathWaypoint
+import dev.finn.aero.module.impl.Fly
 import dev.finn.aero.module.impl.Freecam
 import dev.finn.aero.module.impl.Fullbright
+import dev.finn.aero.module.impl.HudInfo
 import dev.finn.aero.module.impl.KillAura
 import dev.finn.aero.module.impl.NoFall
+import dev.finn.aero.module.impl.Nuker
 import dev.finn.aero.module.impl.Speed
 import dev.finn.aero.module.impl.Sprint
+import dev.finn.aero.module.impl.Tracers
+import dev.finn.aero.module.impl.Zoom
 import dev.finn.aero.module.impl.esp.ChestEsp
 import dev.finn.aero.module.impl.esp.EntityEsp
 import dev.finn.aero.module.impl.esp.PlayerEsp
@@ -65,6 +71,12 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(Speed())
         ModuleManager.register(NoFall())
         ModuleManager.register(AutoAttributeSwap())
+        ModuleManager.register(Fly())
+        ModuleManager.register(Nuker())
+        ModuleManager.register(Tracers())
+        ModuleManager.register(Zoom())
+        ModuleManager.register(AntiKnockback())
+        ModuleManager.register(HudInfo())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()

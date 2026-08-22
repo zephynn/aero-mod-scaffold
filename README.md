@@ -74,15 +74,16 @@ Aero is a client-only mod (no server-side code), so everything lives under
 
 ## Known limitations / what's not built yet
 
-- Only one real module (Sprint) is wired up end-to-end. Fullbright, Speed,
-  Flight, Freecam, ESP, Tracers, HUD elements etc. are designed for (the
-  `Category` enum and `Setting` types anticipate them) but not yet
-  implemented — add them the same way as Sprint.
-- There is no ClickGUI screen yet. Modules can currently only be toggled by
-  keybind. The settings model (`Setting` sealed class) is deliberately
-  generic so a GUI can be added later that just iterates
-  `ModuleManager.all()` and `module.settings` without per-module code.
-- This sandbox's network proxy blocks `maven.fabricmc.net`, Maven Central,
-  and the Gradle Plugin Portal, so `./gradlew build` could not be verified
-  end-to-end here — see the build report from setup for details. It should
-  work normally on a real machine with normal internet access.
+- Modules implemented so far: Sprint, Speed, Fly, NoFall, Freecam, Zoom,
+  Fullbright, KillAura, Criticals, AutoTotem, AutoAttributeSwap,
+  AntiKnockback, Nuker, DeathWaypoint, HUD Info, Tracers, and ESP
+  (Player/Entity/Chest) plus X-Ray — all wired up end-to-end (GUI, config,
+  keybinds).
+- Not yet built: Scaffold, Jesus (water walk), Spider (wall climb),
+  Aimbot/TriggerBot as a KillAura alternative, Nametags, AutoLoot/ChestStealer.
+  Add them the same way as everything else — one file + one registration
+  line in `AeroClient.kt`.
+- The full ClickGUI (Meteor-style side-by-side category columns), a command
+  palette (Alt+RightShift), and a settings screen are all built. The
+  `Setting` sealed class stays generic so new setting types only need one
+  new `when` branch in the renderer, not per-module GUI code.
