@@ -75,13 +75,18 @@ Aero is a client-only mod (no server-side code), so everything lives under
 ## Known limitations / what's not built yet
 
 - Modules implemented so far: Sprint, Speed, Fly, Scaffold, Jesus, Spider,
-  NoFall, Freecam, Fullbright, KillAura, Criticals, AutoTotem,
-  AutoAttributeSwap, AntiKnockback, Nuker, DeathWaypoint, HUD Info, and
+  StepAssist, HighJump, AntiVoid, NoFall, Freecam, Fullbright, KillAura,
+  TriggerBot, Criticals, AutoTotem, AutoArmor, AutoAttributeSwap,
+  AntiKnockback, Nuker, AutoLoot, DeathWaypoint, HUD Info, Nametags, and
   ESP (Player/Entity/Chest) plus X-Ray — all wired up end-to-end (GUI,
   config, keybinds).
-- Not yet built: Aimbot/TriggerBot as a KillAura alternative, Nametags,
-  AutoLoot/ChestStealer. Add them the same way as everything else — one
-  file + one registration line in `AeroClient.kt`.
+- Not built, and not planned without a mixin: a Timer module (speeding up/
+  slowing down your own tick rate). Minecraft 26.2's client-side tick timer
+  (`DeltaTracker.Timer`) has no public setter for its rate any more -- it's
+  fixed at construction from a provider function -- so this would need a
+  mixin into `Minecraft`/`DeltaTracker.Timer` the way Freecam and
+  AutoAttributeSwap already do for their own hooks, rather than the plain
+  one-file module shape everything else here uses.
 - The full ClickGUI (Meteor-style side-by-side category columns), a command
   palette (Alt+RightShift), and a settings screen are all built. The
   `Setting` sealed class stays generic so new setting types only need one
