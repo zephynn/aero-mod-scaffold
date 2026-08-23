@@ -38,6 +38,20 @@ object AttributeSwapState {
     @Volatile
     var swapBack: Boolean = true
 
+    /**
+     * Whether to swap-and-arm on the first click after Primary, cancelling
+     * that click's own attack, rather than swapping and hitting in the
+     * same click. See the mixin's doc comment -- a same-tick swap-then-hit
+     * is a much stronger anti-cheat tell than losing one click to the
+     * switch.
+     */
+    @Volatile
+    var delayFirstHit: Boolean = true
+
+    /** True between an armed swap (waiting for the next click) and that click landing. */
+    @Volatile
+    var armed: Boolean = false
+
     /** Randomized swap-back delay range, in ticks (~50ms each). */
     @Volatile
     var minDelayTicks: Int = 1

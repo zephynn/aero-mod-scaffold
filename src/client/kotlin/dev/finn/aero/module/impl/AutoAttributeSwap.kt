@@ -17,9 +17,13 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
  * This doesn't create any new damage mechanic or fabricate anything the
  * server wouldn't otherwise see -- swapping the selected slot sends the
  * same real UpdateSelectedSlotC2SPacket a manual player pressing a number
- * key sends. It just does the swap-attack-swapback sequence with tick-
- * accurate timing a manual player would need a lot of practice (or a
- * macro) to reproduce reliably.
+ * key sends. But with Delay First Hit on, the swap and the hit are no
+ * longer the same click: the first click after Primary Slot swaps and
+ * arms but its own attack is cancelled, and the actual hit only lands on
+ * whatever click comes next -- a same-tick swap-then-attack is one of the
+ * more well-known things behavior-based anti-cheat watches for, since no
+ * human click and weapon-switch land on the exact same tick together,
+ * every time.
  *
  * The swap-back itself is *not* done in the mixin any more: it's a
  * randomized few-tick delay (see AttributeSwapState) counted down here in
@@ -51,6 +55,9 @@ class AutoAttributeSwap : Module(
     private val swapBack = register(
         BoolSetting("Swap Back", "Switch back to Primary Slot immediately after the attack.", true),
     )
+    private val delayFirstHit = register(
+        BoolSetting("Delay First Hit", "Swap on one click, attack on the next, instead of both in the same click.", true),
+    )
     private val minDelay = register(
         SliderSetting("Min Delay", "Fastest allowed swap-back delay, in ticks (~50ms each).", 1.0, 0.0, 10.0, 1.0),
     )
@@ -66,9 +73,11 @@ class AutoAttributeSwap : Module(
     override fun onDisable() {
         AttributeSwapState.active = false
         // Don't leave the player stuck holding the secondary weapon if the
-        // module is toggled off mid-countdown.
-        if (AttributeSwapState.pendingSwapBackTicks >= 0) {
+        // module is toggled off mid-countdown, or while armed and waiting
+        // for the follow-up click that was never going to come now.
+        if (AttributeSwapState.pendingSwapBackTicks >= 0 || AttributeSwapState.armed) {
             AttributeSwapState.cancelPendingSwapBack()
+            AttributeSwapState.armed = false
             forceSwapToPrimary()
         }
     }
@@ -102,6 +111,7 @@ class AutoAttributeSwap : Module(
         AttributeSwapState.secondarySlot = (secondarySlot.value.toInt() - 1).coerceIn(0, 8)
         AttributeSwapState.requireHoldingPrimary = requireHoldingPrimary.value
         AttributeSwapState.swapBack = swapBack.value
+        AttributeSwapState.delayFirstHit = delayFirstHit.value
         AttributeSwapState.minDelayTicks = minDelay.value.toInt()
         AttributeSwapState.maxDelayTicks = maxDelay.value.toInt().coerceAtLeast(minDelay.value.toInt())
     }
