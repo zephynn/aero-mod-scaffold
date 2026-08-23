@@ -14,6 +14,7 @@
     "KeyboardInputMixin",
     "LightmapExtractorMixin",
     "MinecraftClientAttackMixin",
-    "MouseAttackSwapMixin"
+    "MouseAttackSwapMixin",
+    "SuppressUseItemReleaseMixin"
   ]
 }

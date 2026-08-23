@@ -9,8 +9,12 @@ import dev.finn.aero.module.impl.AntiKnockback
 import dev.finn.aero.module.impl.AntiVoid
 import dev.finn.aero.module.impl.AutoArmor
 import dev.finn.aero.module.impl.AutoAttributeSwap
+import dev.finn.aero.module.impl.AutoDisconnect
+import dev.finn.aero.module.impl.AutoEat
+import dev.finn.aero.module.impl.AutoFish
 import dev.finn.aero.module.impl.AutoLoot
 import dev.finn.aero.module.impl.AutoTotem
+import dev.finn.aero.module.impl.BedAura
 import dev.finn.aero.module.impl.Criticals
 import dev.finn.aero.module.impl.DeathWaypoint
 import dev.finn.aero.module.impl.Fly
@@ -93,6 +97,10 @@ object AeroClient : ClientModInitializer {
         ModuleManager.register(StepAssist())
         ModuleManager.register(AntiVoid())
         ModuleManager.register(HighJump())
+        ModuleManager.register(AutoEat())
+        ModuleManager.register(AutoFish())
+        ModuleManager.register(AutoDisconnect())
+        ModuleManager.register(BedAura())
 
         // Restore saved enabled-state/settings/keybinds from disk.
         ConfigManager.load()
