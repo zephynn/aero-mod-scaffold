@@ -17,6 +17,15 @@ package dev.finn.aero.module.impl
  * instead (picked fresh each attack in [scheduleSwapBack]), which
  * AutoAttributeSwap.onTick() counts down and executes the real swap-back
  * from, rather than the mixin doing it inline on return.
+ *
+ * The real *attack* is delayed the same way now too: a same-tick
+ * swap-then-attack is its own tell independent of the swap-back, so the
+ * mixin arms and cancels that first click's attack, then
+ * [pendingAutoAttackTicks] (via [scheduleAutoAttack]) has
+ * AutoAttributeSwap.onTick() fire the real attack itself a few ticks
+ * later -- via MinecraftStartAttackInvoker re-invoking the same
+ * startAttack() the mixin hooks -- instead of requiring the player to
+ * physically click a second time.
  */
 object AttributeSwapState {
     @Volatile
@@ -48,9 +57,27 @@ object AttributeSwapState {
     @Volatile
     var delayFirstHit: Boolean = true
 
-    /** True between an armed swap (waiting for the next click) and that click landing. */
+    /** True between an armed swap and the (auto-fired) attack that follows it landing. */
     @Volatile
     var armed: Boolean = false
+
+    /** Randomized delay range, in ticks, between arming and auto-firing the real attack. */
+    @Volatile
+    var minAttackDelayTicks: Int = 1
+
+    @Volatile
+    var maxAttackDelayTicks: Int = 3
+
+    /** Ticks remaining until AutoAttributeSwap.onTick() should fire the real, delayed attack. -1 means none pending. */
+    @Volatile
+    var pendingAutoAttackTicks: Int = -1
+
+    /** Called from the mixin right after arming -- picks a fresh random delay before the real attack auto-fires. */
+    fun scheduleAutoAttack() {
+        val min = minAttackDelayTicks.coerceAtLeast(0)
+        val max = maxAttackDelayTicks.coerceAtLeast(min)
+        pendingAutoAttackTicks = (min..max).random()
+    }
 
     /** Randomized swap-back delay range, in ticks (~50ms each). */
     @Volatile
@@ -72,5 +99,9 @@ object AttributeSwapState {
 
     fun cancelPendingSwapBack() {
         pendingSwapBackTicks = -1
+    }
+
+    fun cancelPendingAutoAttack() {
+        pendingAutoAttackTicks = -1
     }
 }

@@ -29,17 +29,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * item, every single time, is a well-known "swap macro" signature no
  * human reaction reproduces.
  *
- * So this doesn't swap-and-hit in the same click any more. The first
- * click while holding Primary Slot swaps to Secondary and arms -- but
- * that click's own attack is cancelled outright, the same way a real
- * player's first click after fumbling a weapon switch would land on
- * nothing. The *next* click, with Secondary already genuinely selected
- * for at least a tick (usually the natural gap between two clicks, which
- * is itself real human-click timing, not anything synthetic), is allowed
- * to actually attack -- and only *that* click's return schedules the
- * randomized swap-back (see AttributeSwapState). Disable "Delay First
- * Hit" on AutoAttributeSwap to fall back to the old same-click swap+hit
- * if you'd rather not lose the first click.
+ * So this doesn't swap-and-hit in the same click any more. The click
+ * while holding Primary Slot swaps to Secondary and arms -- but that
+ * click's own attack is cancelled outright rather than executing in the
+ * same tick as the swap. The real attack still fires from that single
+ * click, though: AutoAttributeSwap.onTick() auto-fires it a randomized
+ * few ticks later via MinecraftStartAttackInvoker (re-invoking this same
+ * startAttack(), which is why the HEAD injection below treats an armed
+ * attack on Secondary as a real attack to let through rather than
+ * swapping again). No second physical click required -- just a real
+ * multi-tick gap between the swap packet and the attack packet instead
+ * of them landing in the same tick. Disable "Delay First Hit" on
+ * AutoAttributeSwap to fall back to the old same-click swap+hit.
  */
 @Mixin(Minecraft.class)
 public class MinecraftClientAttackMixin {
@@ -79,10 +80,14 @@ public class MinecraftClientAttackMixin {
         client.getConnection().send(new ServerboundSetCarriedItemPacket(secondary));
 
         if (AttributeSwapState.INSTANCE.getDelayFirstHit()) {
-            // Arm and swallow this click's own attack -- the hit lands on
-            // whatever click comes next, once the weapon's genuinely been
-            // held a moment, instead of the same tick as the swap.
+            // Arm and swallow this click's own attack -- AutoAttributeSwap
+            // fires the real attack itself a few ticks later (via
+            // MinecraftStartAttackInvoker), so this doesn't cost the
+            // player an actual second click, but the packets a server
+            // sees still land a genuine tick or two apart instead of the
+            // same tick as the swap.
             AttributeSwapState.INSTANCE.setArmed(true);
+            AttributeSwapState.INSTANCE.scheduleAutoAttack();
             cir.setReturnValue(Boolean.FALSE);
             cir.cancel();
         } else {
