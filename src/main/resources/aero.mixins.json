@@ -9,11 +9,10 @@
     "BlockModelRendererMixin",
     "CameraMixin",
     "ChunkRendererRegionMixin",
-    "MinecraftClientAttackMixin",
-    "MinecraftStartAttackInvoker",
     "EntityRendererMixin",
     "InputAccessor",
     "KeyboardInputMixin",
-    "LightmapExtractorMixin"
+    "LightmapExtractorMixin",
+    "MouseAttackSwapMixin"
   ]
 }
