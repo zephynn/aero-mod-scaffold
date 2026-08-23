@@ -4,6 +4,7 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.SliderSetting
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
 
 /**
  * Automates the precise item-switching timing behind weapon-attribute
@@ -19,6 +20,13 @@ import dev.finn.aero.setting.SliderSetting
  * key sends. It just does the swap-attack-swapback sequence with tick-
  * accurate timing a manual player would need a lot of practice (or a
  * macro) to reproduce reliably.
+ *
+ * The swap-back itself is *not* done in the mixin any more: it's a
+ * randomized few-tick delay (see AttributeSwapState) counted down here in
+ * onTick and executed once it hits zero, instead of landing on the exact
+ * same tick as the attack every single time -- that zero-variance timing
+ * is a much stronger tell to behavior-based anti-cheat than the swap
+ * itself, since no human reaction is ever that consistent.
  *
  * Slots are configured by hotbar position (1-9) rather than by item name:
  * there's no item-picker Setting type in this codebase yet (see
@@ -43,6 +51,12 @@ class AutoAttributeSwap : Module(
     private val swapBack = register(
         BoolSetting("Swap Back", "Switch back to Primary Slot immediately after the attack.", true),
     )
+    private val minDelay = register(
+        SliderSetting("Min Delay", "Fastest allowed swap-back delay, in ticks (~50ms each).", 1.0, 0.0, 10.0, 1.0),
+    )
+    private val maxDelay = register(
+        SliderSetting("Max Delay", "Slowest allowed swap-back delay, in ticks (~50ms each).", 4.0, 0.0, 10.0, 1.0),
+    )
 
     override fun onEnable() {
         publish()
@@ -51,12 +65,36 @@ class AutoAttributeSwap : Module(
 
     override fun onDisable() {
         AttributeSwapState.active = false
+        // Don't leave the player stuck holding the secondary weapon if the
+        // module is toggled off mid-countdown.
+        if (AttributeSwapState.pendingSwapBackTicks >= 0) {
+            AttributeSwapState.cancelPendingSwapBack()
+            forceSwapToPrimary()
+        }
     }
 
     override fun onTick() {
         // Settings are read live by the mixin every attack, but keep the
         // bridge in sync each tick too in case sliders are dragged live.
         publish()
+
+        val pending = AttributeSwapState.pendingSwapBackTicks
+        if (pending < 0) return
+
+        if (pending == 0) {
+            AttributeSwapState.pendingSwapBackTicks = -1
+            forceSwapToPrimary()
+        } else {
+            AttributeSwapState.pendingSwapBackTicks = pending - 1
+        }
+    }
+
+    private fun forceSwapToPrimary() {
+        val player = mc.player ?: return
+        val connection = mc.connection ?: return
+        val primary = AttributeSwapState.primarySlot
+        player.inventory.selectedSlot = primary
+        connection.send(ServerboundSetCarriedItemPacket(primary))
     }
 
     private fun publish() {
@@ -64,5 +102,7 @@ class AutoAttributeSwap : Module(
         AttributeSwapState.secondarySlot = (secondarySlot.value.toInt() - 1).coerceIn(0, 8)
         AttributeSwapState.requireHoldingPrimary = requireHoldingPrimary.value
         AttributeSwapState.swapBack = swapBack.value
+        AttributeSwapState.minDelayTicks = minDelay.value.toInt()
+        AttributeSwapState.maxDelayTicks = maxDelay.value.toInt().coerceAtLeast(minDelay.value.toInt())
     }
 }

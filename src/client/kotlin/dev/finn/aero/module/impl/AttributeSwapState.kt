@@ -6,6 +6,17 @@ package dev.finn.aero.module.impl
  * directly). The mixin only ever reads these each time `doAttack()` runs,
  * so keeping this cheap matters, but it's not a hot path the way chunk
  * meshing is.
+ *
+ * The swap-*in* is intentionally left instant -- it has to be in place
+ * before the attack for the crit setup to work at all, and it's already
+ * timed by the player's own real click, so there's nothing artificial
+ * about its timing to begin with. The swap-*back* is the part that was
+ * previously landing on the exact same tick as the attack, every single
+ * time, forever -- a zero-variance pattern no human reaction produces.
+ * [pendingSwapBackTicks] turns that into a randomized few-tick delay
+ * instead (picked fresh each attack in [scheduleSwapBack]), which
+ * AutoAttributeSwap.onTick() counts down and executes the real swap-back
+ * from, rather than the mixin doing it inline on return.
  */
 object AttributeSwapState {
     @Volatile
@@ -26,4 +37,26 @@ object AttributeSwapState {
     /** Whether to switch back to [primarySlot] once the attack call returns. */
     @Volatile
     var swapBack: Boolean = true
+
+    /** Randomized swap-back delay range, in ticks (~50ms each). */
+    @Volatile
+    var minDelayTicks: Int = 1
+
+    @Volatile
+    var maxDelayTicks: Int = 4
+
+    /** Ticks remaining until AutoAttributeSwap.onTick() should perform the swap-back. -1 means none pending. */
+    @Volatile
+    var pendingSwapBackTicks: Int = -1
+
+    /** Called from the mixin right as the attack call returns -- picks a fresh random delay instead of swapping back inline. */
+    fun scheduleSwapBack() {
+        val min = minDelayTicks.coerceAtLeast(0)
+        val max = maxDelayTicks.coerceAtLeast(min)
+        pendingSwapBackTicks = (min..max).random()
+    }
+
+    fun cancelPendingSwapBack() {
+        pendingSwapBackTicks = -1
+    }
 }

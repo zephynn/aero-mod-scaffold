@@ -56,18 +56,13 @@ public class MinecraftClientAttackMixin {
 
     @Inject(method = "startAttack", at = @At("RETURN"))
     private void aero$afterAttack(CallbackInfoReturnable<Boolean> cir) {
-        if (!aero$didSwap || !AttributeSwapState.INSTANCE.getSwapBack()) {
-            aero$didSwap = false;
-            return;
-        }
+        boolean didSwap = aero$didSwap;
         aero$didSwap = false;
+        if (!didSwap || !AttributeSwapState.INSTANCE.getSwapBack()) return;
 
-        Minecraft client = (Minecraft) (Object) this;
-        LocalPlayer player = client.player;
-        if (player == null || client.getConnection() == null) return;
-
-        int primary = AttributeSwapState.INSTANCE.getPrimarySlot();
-        player.getInventory().setSelectedSlot(primary);
-        client.getConnection().send(new ServerboundSetCarriedItemPacket(primary));
+        // Don't swap back inline here -- see AttributeSwapState's doc comment.
+        // A randomized few-tick delay, applied from AutoAttributeSwap.onTick(),
+        // replaces what would otherwise be a same-tick, zero-variance revert.
+        AttributeSwapState.INSTANCE.scheduleSwapBack();
     }
 }
