@@ -23,8 +23,8 @@ loom {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	// Minecraft 26.1+ ships unobfuscated, so there are no mappings to apply --
-	// Loom uses Mojang's own names straight out of the jar.
+	// This environment's 1.21.11 jar ships unobfuscated (see
+	// gradle.properties) -- there's nothing for Loom to remap.
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
@@ -45,12 +45,12 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = 21
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
 	compilerOptions {
-		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
+		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
 	}
 }
 
@@ -60,8 +60,8 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {
@@ -73,14 +73,16 @@ jar {
 	}
 }
 
-// Deploy the built mod jar straight into the "26.2" Prism Launcher
+// Deploy the built mod jar straight into the "1.21.11" Prism Launcher
 // instance's mods folder, so `./gradlew build` (or an IDE build) is enough
-// to pick the new jar up next time that instance is launched.
-def prismModsDir = file("/home/zephyn/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/26.2/minecraft/mods")
+// to pick the new jar up next time that instance is launched. Adjust the
+// instance folder name below if your local Prism instance is named
+// differently.
+def prismModsDir = file("/home/zephyn/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/1.21.11/minecraft/mods")
 
 tasks.register("deployToPrism", Copy) {
 	group = "aero"
-	description = "Copies the built mod jar into the Prism Launcher 26.2 instance's mods folder."
+	description = "Copies the built mod jar into the Prism Launcher 1.21.11 instance's mods folder."
 
 	dependsOn jar
 	from(jar.archiveFile)
