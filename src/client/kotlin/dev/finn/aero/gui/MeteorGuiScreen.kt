@@ -10,7 +10,7 @@ import dev.finn.aero.setting.KeybindSetting
 import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.SliderSetting
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
@@ -174,10 +174,10 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
 
     // --- Render -------------------------------------------------------------
 
-    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
         if (windowAnim <= 0.001f && closing) {
-            minecraft?.gui?.setScreen(null)
+            minecraft?.setScreen(null)
             return
         }
 
@@ -214,7 +214,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderChrome(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+    private fun renderChrome(context: GuiGraphics, mouseX: Int, mouseY: Int) {
         fill(context, 0, 0, width, TOP_Y - 2, colorChrome)
         text(context, "AERO", COL_MARGIN, 6, COLOR_TEXT_DIM)
 
@@ -224,7 +224,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         text(context, "⚙", gearX, gearY, if (gearHovered) accent else COLOR_TEXT_DIM)
     }
 
-    private fun renderColumn(context: GuiGraphicsExtractor, category: Category, mouseX: Int, mouseY: Int) {
+    private fun renderColumn(context: GuiGraphics, category: Category, mouseX: Int, mouseY: Int) {
         val x0 = columnX[category] ?: return
         val x1 = x0 + COL_WIDTH
         if (x0 > width) return
@@ -266,7 +266,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderModuleRow(context: GuiGraphicsExtractor, module: Module, x0: Int, x1: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
+    private fun renderModuleRow(context: GuiGraphics, module: Module, x0: Int, x1: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
         val rowX0 = x0 + 2
         val rowX1 = x1 - 2
         val hovered = mouseX in rowX0..rowX1 && mouseY in top..bottom
@@ -284,7 +284,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         text(context, name, rowX0 + 4, top + (ROW_HEIGHT - 8) / 2, nameColor)
     }
 
-    private fun renderPanel(context: GuiGraphicsExtractor, module: Module, mouseX: Int, mouseY: Int) {
+    private fun renderPanel(context: GuiGraphics, module: Module, mouseX: Int, mouseY: Int) {
         val ph = panelHeight(module)
         panelY = panelY.coerceIn(TOP_Y, (height - ph - 4).coerceAtLeast(TOP_Y))
         val px1 = panelX + PANEL_WIDTH
@@ -322,7 +322,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderDropdownOptionRow(context: GuiGraphicsExtractor, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
+    private fun renderDropdownOptionRow(context: GuiGraphics, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
         val setting = row.setting as? ModeSetting ?: return
         val option = row.dropdownOption ?: return
         val selected = option == setting.value
@@ -332,7 +332,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         text(context, option, x + 4, row.top + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM)
     }
 
-    private fun renderEditListRow(context: GuiGraphicsExtractor, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
+    private fun renderEditListRow(context: GuiGraphics, row: Row, x: Int, x1: Int, mouseX: Int, mouseY: Int) {
         val hovered = mouseX in x..x1 && mouseY in row.top..row.bottom
         if (hovered) fill(context, x, row.top, x1, row.bottom, COLOR_ROW_HOVER)
         val label = "Edit List..."
@@ -341,15 +341,15 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
 
     // --- Small drawing helpers -------------------------------------------------
 
-    private fun fill(context: GuiGraphicsExtractor, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, extra: Float = 1f) {
+    private fun fill(context: GuiGraphics, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, extra: Float = 1f) {
         context.fill(x0, y0, x1, y1, scaleAlpha(color, easeOutCubic(windowAnim) * extra))
     }
 
-    private fun text(context: GuiGraphicsExtractor, str: String, x: Int, y: Int, color: Int, extra: Float = 1f) {
-        context.text(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim) * extra), true)
+    private fun text(context: GuiGraphics, str: String, x: Int, y: Int, color: Int, extra: Float = 1f) {
+        context.drawString(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim) * extra), true)
     }
 
-    private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    private fun drawBorder(context: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
         fill(context, x, y, x + w, y + 1, color)
         fill(context, x, y + h - 1, x + w, y + h, color)
         fill(context, x, y, x + 1, y + h, color)
@@ -363,7 +363,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     /** [SettingRow.Ctx] bound to this screen's own colours/state, wrapping [context] for the lifetime of one render call. */
-    private fun rowCtx(context: GuiGraphicsExtractor): SettingRow.Ctx = object : SettingRow.Ctx {
+    private fun rowCtx(context: GuiGraphics): SettingRow.Ctx = object : SettingRow.Ctx {
         override val font get() = this@MeteorGuiScreen.font
         override val accent get() = this@MeteorGuiScreen.accent
         override val colorText = COLOR_TEXT
@@ -430,7 +430,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
         val gearX = width - 16
         val gearY = 5
         if (mouseX in (gearX - 3).toDouble()..(gearX + 11).toDouble() && mouseY in (gearY - 3).toDouble()..(gearY + 11).toDouble()) {
-            minecraft?.gui?.setScreen(SettingsScreen())
+            minecraft?.setScreen(SettingsScreen())
             return true
         }
 
@@ -455,7 +455,7 @@ class MeteorGuiScreen : Screen(Component.literal("Aero")) {
                         }
                         if (row.isEditListButton) {
                             modeDropdown = null
-                            minecraft?.gui?.setScreen(XrayCustomScreen(row.module as XrayModule))
+                            minecraft?.setScreen(XrayCustomScreen(row.module as XrayModule))
                             return true
                         }
                         if (row.setting != null) {

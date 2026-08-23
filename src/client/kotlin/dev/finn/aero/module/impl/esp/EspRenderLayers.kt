@@ -1,8 +1,7 @@
 package dev.finn.aero.module.impl.esp
 
-import com.mojang.blaze3d.pipeline.DepthStencilState
 import com.mojang.blaze3d.pipeline.RenderPipeline
-import com.mojang.blaze3d.platform.CompareOp
+import com.mojang.blaze3d.platform.DepthTestFunction
 import dev.finn.aero.client.AeroClient
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.rendertype.RenderSetup
@@ -16,13 +15,12 @@ import net.minecraft.client.renderer.rendertype.RenderTypes
  * (see EntityRendererMixin), but block-based ESP (Chest ESP, X-Ray) has no
  * equivalent, so it needs its own no-depth types to draw into.
  *
- * 26.x reshaped this area: depth test + depth write are now one
- * [DepthStencilState] record on the pipeline rather than two separate
- * builder calls, and every field a pipeline was built from is readable back
- * off the finished object via public getters. That means no reflection is
- * needed to copy vanilla's LINES / DEBUG_QUADS pipelines and flip depth off
- * -- the only thing still not public is `RenderType.create`, which stays
- * reflective.
+ * 1.21.11's pipeline builder is simpler than 26.2's -- depth test is a
+ * single [DepthTestFunction] enum value rather than a DepthStencilState
+ * record, and there's no per-target bind-group-layout/vertex-binding
+ * plumbing to copy, so this just carries over shader, polygon mode, cull,
+ * and vertex format from the base pipeline. `RenderType.create` is still
+ * package-private, so that part stays reflective.
  *
  * If any of that ever breaks, this falls back to normal depth-tested
  * lines/boxes rather than crashing -- ESP still works, it just stops seeing
@@ -46,17 +44,14 @@ object EspRenderLayers {
                 .withFragmentShader(base.fragmentShader)
                 .withPolygonMode(base.polygonMode)
                 .withCull(base.isCull)
-                .withPrimitiveTopology(base.primitiveTopology)
-                // ALWAYS_PASS + no depth write == "draw through walls".
-                .withDepthStencilState(DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                .withVertexFormat(base.vertexFormat, base.vertexFormatMode)
+                // NO_DEPTH_TEST + no depth write == "draw through walls".
+                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                .withDepthWrite(false)
 
-            for (layout in base.bindGroupLayouts) builder.withBindGroupLayout(layout)
-            base.colorTargetStates.forEachIndexed { index, state ->
-                if (state != null) builder.withColorTargetState(index, state) else builder.withUnusedColorTargetState(index)
-            }
-            base.vertexFormatBindings.forEachIndexed { index, format ->
-                if (format != null) builder.withVertexBinding(index, format)
-            }
+            base.blendFunction.ifPresentOrElse({ builder.withBlend(it) }, { builder.withoutBlend() })
+            builder.withColorLogic(base.colorLogic)
+
             val defines = base.shaderDefines
             for (flag in defines.flags()) builder.withShaderDefine(flag)
             for ((key, value) in defines.values()) builder.withShaderDefine(key, value.toIntOrNull() ?: 0)

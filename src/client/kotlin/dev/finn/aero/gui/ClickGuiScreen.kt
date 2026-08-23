@@ -11,7 +11,7 @@ import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.Setting
 import dev.finn.aero.setting.SliderSetting
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
@@ -32,7 +32,7 @@ import org.lwjgl.glfw.GLFW
  * which the engine already calls on resize/scale changes.
  *
  * Every draw call goes through fill()/text() below instead of calling
- * GuiGraphicsExtractor directly, so the open/close fade (windowAnim) applies
+ * GuiGraphics directly, so the open/close fade (windowAnim) applies
  * uniformly -- backgrounds, borders, AND text all fade together instead of
  * text snapping in ahead of the panel behind it.
  *
@@ -226,10 +226,10 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
 
     // --- Render -----------------------------------------------------------
 
-    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
         if (windowAnim <= 0.001f && closing) {
-            minecraft?.gui?.setScreen(null)
+            minecraft?.setScreen(null)
             return
         }
 
@@ -273,7 +273,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderChrome(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
+    private fun renderChrome(context: GuiGraphics, gy: Int, mouseX: Int, mouseY: Int) {
         fill(context, guiX, gy, guiX + guiWidth, gy + CHROME_HEIGHT, colorChrome)
         text(context, "AERO", guiX + 8, gy + 6, COLOR_TEXT_DIM)
 
@@ -283,7 +283,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         text(context, "⚙", gearX, gearY, if (gearHovered) accent else COLOR_TEXT_DIM)
     }
 
-    private fun renderRail(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
+    private fun renderRail(context: GuiGraphics, gy: Int, mouseX: Int, mouseY: Int) {
         val railX = guiX
         val railTop = gy + CHROME_HEIGHT
         fill(context, railX, railTop, railX + railWidth, gy + guiHeight, colorRail)
@@ -320,7 +320,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         }
     }
 
-    private fun renderTab(context: GuiGraphicsExtractor, sx: Int, sw: Int, y: Int, label: String, selected: Boolean, hoverAnim: Float) {
+    private fun renderTab(context: GuiGraphics, sx: Int, sw: Int, y: Int, label: String, selected: Boolean, hoverAnim: Float) {
         if (selected) {
             fill(context, sx, y, sx + sw, y + CAT_HEIGHT - 2, colorRowSelected)
         } else if (hoverAnim > 0.02f) {
@@ -331,7 +331,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
 
     private fun anyFavourites(): Boolean = ModuleManager.all().any { it.pinned }
 
-    private fun renderModuleList(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
+    private fun renderModuleList(context: GuiGraphics, gy: Int, mouseX: Int, mouseY: Int) {
         val listX = guiX + railWidth
         val headerY = gy + CHROME_HEIGHT + 6
         val headerText = when {
@@ -371,7 +371,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     /** One option row of an expanded ModeSetting's inline dropdown -- indented further than a normal setting row to read as nested under it. */
-    private fun renderDropdownOptionRow(context: GuiGraphicsExtractor, row: Row, mouseX: Int, mouseY: Int) {
+    private fun renderDropdownOptionRow(context: GuiGraphics, row: Row, mouseX: Int, mouseY: Int) {
         val setting = row.setting as? ModeSetting ?: return
         val option = row.dropdownOption ?: return
         val listX = guiX + railWidth
@@ -387,7 +387,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         text(context, option, x + 4, row.top + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM, extra)
     }
 
-    private fun renderModuleHeaderRow(context: GuiGraphicsExtractor, row: Row, mouseX: Int, mouseY: Int) {
+    private fun renderModuleHeaderRow(context: GuiGraphics, row: Row, mouseX: Int, mouseY: Int) {
         val module = row.module
         val listX = guiX + railWidth
         val x0 = listX + 6
@@ -444,7 +444,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     /** Special-cased row for X-Ray's Custom mode -- opens [XrayCustomScreen] rather than being a generic Setting. */
-    private fun renderEditListRow(context: GuiGraphicsExtractor, row: Row, mouseX: Int, mouseY: Int) {
+    private fun renderEditListRow(context: GuiGraphics, row: Row, mouseX: Int, mouseY: Int) {
         val listX = guiX + railWidth
         val x = listX + 20
         val x1 = listX + listWidth - 6
@@ -457,7 +457,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         text(context, label, x + (x1 - x - font.width(label)) / 2, row.top + 5, accent, extra)
     }
 
-    private fun renderSettingRow(context: GuiGraphicsExtractor, row: Row, mouseX: Int, mouseY: Int) {
+    private fun renderSettingRow(context: GuiGraphics, row: Row, mouseX: Int, mouseY: Int) {
         val setting = row.setting ?: return
         val listX = guiX + railWidth
         val x = listX + 20
@@ -468,7 +468,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     }
 
     /** Builds a [SettingRow.Ctx] bound to this screen's own colours/state, wrapping [context] for the lifetime of one render call. */
-    private fun settingCtx(context: GuiGraphicsExtractor): SettingRow.Ctx = object : SettingRow.Ctx {
+    private fun settingCtx(context: GuiGraphics): SettingRow.Ctx = object : SettingRow.Ctx {
         override val font get() = this@ClickGuiScreen.font
         override val accent get() = this@ClickGuiScreen.accent
         override val colorText = COLOR_TEXT
@@ -486,7 +486,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
             this@ClickGuiScreen.text(context, str, x, y, color, extra)
     }
 
-    /** [SettingRow.ClickCtx] view of this screen's state -- lighter than [settingCtx], needs no live [GuiGraphicsExtractor]. */
+    /** [SettingRow.ClickCtx] view of this screen's state -- lighter than [settingCtx], needs no live [GuiGraphics]. */
     private val clickCtx: SettingRow.ClickCtx = object : SettingRow.ClickCtx {
         override var modeDropdown: ModeSetting?
             get() = this@ClickGuiScreen.modeDropdown
@@ -499,20 +499,20 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
     // --- Small drawing helpers ---------------------------------------------
 
     /** Every background/box fill in the GUI goes through here so it fades with windowAnim (and, optionally, a dropdown's own reveal). */
-    private fun fill(context: GuiGraphicsExtractor, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, extra: Float = 1f) {
+    private fun fill(context: GuiGraphics, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, extra: Float = 1f) {
         context.fill(x0, y0, x1, y1, scaleAlpha(color, easeOutCubic(windowAnim) * extra))
     }
 
     /** Every label/value in the GUI goes through here so text fades in lockstep with its background. */
-    private fun text(context: GuiGraphicsExtractor, str: String, x: Int, y: Int, color: Int, extra: Float = 1f) {
-        context.text(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim) * extra), true)
+    private fun text(context: GuiGraphics, str: String, x: Int, y: Int, color: Int, extra: Float = 1f) {
+        context.drawString(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim) * extra), true)
     }
 
-    private fun drawToggle(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, anim: Float, extra: Float = 1f) {
+    private fun drawToggle(context: GuiGraphics, x: Int, y: Int, w: Int, h: Int, anim: Float, extra: Float = 1f) {
         SettingRow.drawToggle(settingCtx(context), x, y, w, h, anim, extra)
     }
 
-    private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    private fun drawBorder(context: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
         fill(context, x, y, x + w, y + 1, color)
         fill(context, x, y + h - 1, x + w, y + h, color)
         fill(context, x, y, x + 1, y + h, color)
@@ -557,7 +557,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
         val gearX = guiX + guiWidth - 16
         val gearY = guiY + 5
         if (mouseX in (gearX - 3).toDouble()..(gearX + 11).toDouble() && mouseY in (gearY - 3).toDouble()..(gearY + 11).toDouble()) {
-            minecraft?.gui?.setScreen(SettingsScreen())
+            minecraft?.setScreen(SettingsScreen())
             return true
         }
 
@@ -616,7 +616,7 @@ class ClickGuiScreen : Screen(Component.literal("Aero")) {
                 }
                 if (row.isEditListButton) {
                     modeDropdown = null
-                    minecraft?.gui?.setScreen(XrayCustomScreen(row.module as XrayModule))
+                    minecraft?.setScreen(XrayCustomScreen(row.module as XrayModule))
                     return true
                 }
                 if (row.setting == null) {

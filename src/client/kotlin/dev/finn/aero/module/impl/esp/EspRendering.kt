@@ -1,6 +1,6 @@
 package dev.finn.aero.module.impl.esp
 
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.world.phys.AABB
@@ -72,13 +72,13 @@ object EspRendering {
 
     /**
      * A solid line in screen space, from ([x0],[y0]) to ([x1],[y1]) -- one thin
-     * filled rectangle, rotated to match the line's angle via GuiGraphicsExtractor's own
-     * 2D matrix stack, the same technique Meteor's tracer uses. GuiGraphicsExtractor has
+     * filled rectangle, rotated to match the line's angle via GuiGraphics's own
+     * 2D matrix stack, the same technique Meteor's tracer uses. GuiGraphics has
      * no line primitive of its own, but fill() already respects whatever
      * transform is pushed onto getMatrices(), so a rotated 1px-tall rect reads
      * as a clean continuous line instead of a dashed row of squares.
      */
-    fun drawScreenLine(context: GuiGraphicsExtractor, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, thickness: Int = 1) {
+    fun drawScreenLine(context: GuiGraphics, x0: Int, y0: Int, x1: Int, y1: Int, color: Int, thickness: Int = 1) {
         val dx = (x1 - x0).toFloat()
         val dy = (y1 - y0).toFloat()
         val length = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()

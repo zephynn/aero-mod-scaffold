@@ -5,7 +5,7 @@ import dev.finn.aero.module.Module
 import dev.finn.aero.module.impl.esp.EspProjection
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.SliderSetting
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
@@ -23,11 +23,11 @@ class Nametags : Module(
     private val health = register(BoolSetting("Health", "Show current/max health.", true))
     private val distance = register(BoolSetting("Distance", "Show distance in blocks.", true))
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         val world = mc.level ?: return
         val self = mc.player ?: return
 
-        val camera = mc.gameRenderer.mainCamera()
+        val camera = mc.gameRenderer.mainCamera
         val camPos = camera.position()
         val fov = mc.options.fov().get().toFloat()
         val screenW = mc.window.guiScaledWidth
@@ -48,7 +48,7 @@ class Nametags : Module(
             val label = parts.joinToString("  ")
 
             val width = mc.font.width(label)
-            context.text(mc.font, label, point.first - width / 2, point.second, 0xFFFFFFFF.toInt(), true)
+            context.drawString(mc.font, label, point.first - width / 2, point.second, 0xFFFFFFFF.toInt(), true)
         }
     }
 }

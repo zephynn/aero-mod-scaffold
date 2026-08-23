@@ -1,47 +1,56 @@
 package dev.finn.aero.mixin;
 
 import dev.finn.aero.module.impl.FullbrightState;
-import net.minecraft.client.renderer.LightmapRenderStateExtractor;
-import net.minecraft.client.renderer.state.LightmapRenderState;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.world.level.dimension.DimensionType;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Fullbright. 26.x moved the lightmap onto the render-state extraction
- * pipeline: LightmapRenderStateExtractor#extract fills a plain mutable
- * LightmapRenderState once per frame, and Lightmap#render later bakes that
- * into the UBO that lightmap.fsh reads. Overwriting the state right after
- * it's filled is both simpler and more robust than the old approach of
- * intercepting individual Std140Builder#putFloat calls by ordinal.
+ * Fullbright, 1.21.11-shape: LightTexture#getBrightness is the static
+ * per-texel gamma curve that turns a light level into a brightness
+ * fraction -- forcing it to 1.0f makes every texel maximally lit
+ * regardless of actual light level, a real fullbright rather than a
+ * gamma/brightness slider tweak (which can only reshape light that's
+ * already there, never lift a zero-light texel).
  *
- * The field to override is AmbientColor: in this shader the lit colour
- * starts as `max(AmbientColor, nightVision)` and everything else (sky,
- * block light) is *added* on top, so forcing it to white makes every texel
- * fully lit regardless of actual light level -- a real fullbright, not a
- * gamma/brightness curve tweak (BrightnessFactor only reshapes light that
- * is already there, so it can never lift a zero-light texel).
- *
- * needsUpdate is forced for as long as Fullbright is on plus the first
- * frame after it goes off, so the lightmap texture is actually re-baked
- * on toggle instead of keeping whatever was last uploaded.
+ * LightTexture#updateLightTexture(float) only actually rebuilds the GPU
+ * texture when its private `updateLightTexture` dirty flag is set --
+ * otherwise it's a no-op that reuses last frame's texture. Toggling
+ * Fullbright doesn't set that flag on its own, so this forces it for as
+ * long as Fullbright is on plus the first frame after it goes off (so the
+ * texture actually gets rebuilt back to normal on toggle-off too).
  */
-@Mixin(LightmapRenderStateExtractor.class)
+@Mixin(LightTexture.class)
 public abstract class LightmapExtractorMixin {
+    @Shadow
+    private boolean updateLightTexture;
 
-    @org.spongepowered.asm.mixin.Unique
+    @Unique
     private boolean aero$wasActive = false;
 
-    @Inject(method = "extract(Lnet/minecraft/client/renderer/state/LightmapRenderState;F)V", at = @At("TAIL"))
-    private void aero$forceFullbright(LightmapRenderState state, float partialTick, CallbackInfo ci) {
+    @Inject(method = "updateLightTexture(F)V", at = @At("HEAD"))
+    private void aero$forceRebuild(float partialTick, CallbackInfo ci) {
         boolean active = FullbrightState.INSTANCE.active;
-        if (active) {
-            state.ambientColor = LightmapRenderStateExtractor.WHITE;
-            state.needsUpdate = true;
-        } else if (this.aero$wasActive) {
-            state.needsUpdate = true;
+        if (active || this.aero$wasActive) {
+            this.updateLightTexture = true;
         }
         this.aero$wasActive = active;
+    }
+
+    @Inject(
+        method = "getBrightness(Lnet/minecraft/world/level/dimension/DimensionType;I)F",
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    private static void aero$forceBrightness(DimensionType dimensionType, int light, CallbackInfoReturnable<Float> cir) {
+        if (FullbrightState.INSTANCE.active) {
+            cir.setReturnValue(1.0f);
+        }
     }
 }

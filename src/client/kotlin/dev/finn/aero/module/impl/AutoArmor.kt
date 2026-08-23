@@ -7,7 +7,7 @@ import dev.finn.aero.setting.SliderSetting
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.inventory.ContainerInput
+import net.minecraft.world.inventory.ClickType
 import net.minecraft.world.item.ItemStack
 
 /**
@@ -105,10 +105,10 @@ class AutoArmor : Module(
             }
 
             if (bestIndex >= 0) {
-                gameMode.handleContainerInput(menu.containerId, bestIndex, 0, ContainerInput.PICKUP, player)
-                gameMode.handleContainerInput(menu.containerId, armorMenuIndex, 0, ContainerInput.PICKUP, player)
+                gameMode.handleInventoryMouseClick(menu.containerId, bestIndex, 0, ClickType.PICKUP, player)
+                gameMode.handleInventoryMouseClick(menu.containerId, armorMenuIndex, 0, ClickType.PICKUP, player)
                 if (!menu.carried.isEmpty) {
-                    gameMode.handleContainerInput(menu.containerId, bestIndex, 0, ContainerInput.PICKUP, player)
+                    gameMode.handleInventoryMouseClick(menu.containerId, bestIndex, 0, ClickType.PICKUP, player)
                 }
             }
         }

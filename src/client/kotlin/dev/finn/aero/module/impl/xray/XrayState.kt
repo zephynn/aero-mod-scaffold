@@ -39,21 +39,15 @@ object XrayState {
 
     /**
      * Forces every currently-loaded chunk to re-mesh so the mixin's
-     * getBlockState swap actually takes visible effect. Verified via javap
-     * against the 26.2 client jar: LevelRenderer's old no-arg `allChanged()`
-     * is gone; `invalidateCompiledGeometry(level, options, camera, blockColors)`
-     * is the replacement that discards and rebuilds every compiled section.
+     * getBlockState swap actually takes visible effect. 1.21.11's
+     * LevelRenderer still has the classic no-arg `allChanged()` -- it's the
+     * 26.x branch this was ported from that replaced it with
+     * `invalidateCompiledGeometry(level, options, camera, blockColors)`.
      */
     fun requestChunkReload() {
         val client = Minecraft.getInstance()
         client.execute {
-            val level = client.level ?: return@execute
-            client.levelRenderer.invalidateCompiledGeometry(
-                level,
-                client.options,
-                client.gameRenderer.mainCamera(),
-                client.blockColors,
-            )
+            client.levelRenderer.allChanged()
         }
     }
 }

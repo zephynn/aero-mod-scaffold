@@ -4,12 +4,12 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 
 /**
  * A small always-on corner overlay -- coordinates, facing direction, and
- * FPS -- built from the same GuiGraphicsExtractor.text() call DeathWaypoint
+ * FPS -- built from the same GuiGraphics.text() call DeathWaypoint
  * and X-Ray's block labels already use, so it needs no new rendering
  * machinery.
  */
@@ -23,7 +23,7 @@ class HudInfo : Module(
     private val fps = register(BoolSetting("FPS", "Show the current frame rate.", true))
     private val color = register(ColorSetting("Text Color", "Colour of the HUD text.", 0xFFFFFFFF.toInt()))
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         val player = mc.player ?: return
 
         var y = 4
@@ -32,15 +32,15 @@ class HudInfo : Module(
 
         if (coords.value) {
             val pos = player.blockPosition()
-            context.text(mc.font, "XYZ: ${pos.x}, ${pos.y}, ${pos.z}", x, y, color.value, true)
+            context.drawString(mc.font, "XYZ: ${pos.x}, ${pos.y}, ${pos.z}", x, y, color.value, true)
             y += lineHeight
         }
         if (direction.value) {
-            context.text(mc.font, "Facing: ${facing(player.yRot)}", x, y, color.value, true)
+            context.drawString(mc.font, "Facing: ${facing(player.yRot)}", x, y, color.value, true)
             y += lineHeight
         }
         if (fps.value) {
-            context.text(mc.font, "FPS: ${mc.fps}", x, y, color.value, true)
+            context.drawString(mc.font, "FPS: ${mc.fps}", x, y, color.value, true)
             y += lineHeight
         }
     }

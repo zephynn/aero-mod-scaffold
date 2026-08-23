@@ -3,7 +3,7 @@ package dev.finn.aero.module.impl
 import dev.finn.aero.config.Theme
 import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.DeathScreen
 import net.minecraft.client.DeltaTracker
 import net.minecraft.resources.ResourceKey
@@ -33,7 +33,7 @@ class DeathWaypoint : Module(
     }
 
     override fun onTick() {
-        val onDeathScreen = mc.gui.screen() is DeathScreen
+        val onDeathScreen = mc.screen is DeathScreen
         if (onDeathScreen && !wasOnDeathScreen) {
             mc.player?.let {
                 deathPos = it.position()
@@ -43,11 +43,11 @@ class DeathWaypoint : Module(
         wasOnDeathScreen = onDeathScreen
     }
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         val pos = deathPos ?: return
         val player = mc.player ?: return
         if (deathDimension != mc.level?.dimension()) return
-        if (mc.gui.screen() != null) return
+        if (mc.screen != null) return
 
         val dx = pos.x - player.x
         val dz = pos.z - player.z
@@ -74,6 +74,6 @@ class DeathWaypoint : Module(
 
         val label = "Death · ${distance.toInt()}m"
         val labelWidth = mc.font.width(label)
-        context.text(mc.font, label, screenW / 2 - labelWidth / 2, barY + 8, accent, true)
+        context.drawString(mc.font, label, screenW / 2 - labelWidth / 2, barY + 8, accent, true)
     }
 }

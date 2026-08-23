@@ -4,7 +4,7 @@ import dev.finn.aero.config.Theme
 import dev.finn.aero.module.Module
 import dev.finn.aero.module.ModuleManager
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
@@ -73,7 +73,7 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
 
     private fun height(rowCount: Int): Int = SEARCH_HEIGHT + 8 + rowCount * ROW_HEIGHT + 8
 
-    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         val results = matches().take(MAX_VISIBLE_ROWS)
         val h = height(results.size)
 
@@ -85,19 +85,19 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
         val sw = WIDTH - 12
         context.fill(sx, sy, sx + sw, sy + SEARCH_HEIGHT, colorFieldBg)
         val label = query.ifEmpty { "Search modules..." }
-        context.text(font, label, sx + 6, sy + 6, if (query.isNotEmpty()) COLOR_TEXT else COLOR_TEXT_FAINT, true)
+        context.drawString(font, label, sx + 6, sy + 6, if (query.isNotEmpty()) COLOR_TEXT else COLOR_TEXT_FAINT, true)
 
         var y = sy + SEARCH_HEIGHT + 8
         if (query.isNotEmpty() && results.isEmpty()) {
-            context.text(font, "No matches", sx + 4, y + 3, COLOR_TEXT_FAINT, true)
+            context.drawString(font, "No matches", sx + 4, y + 3, COLOR_TEXT_FAINT, true)
         }
         for ((i, module) in results.withIndex()) {
             val selected = i == selectedIndex
             if (selected) context.fill(sx, y, sx + sw, y + ROW_HEIGHT, colorRowSelected)
             val nameColor = if (module.enabled) accent else COLOR_TEXT
-            context.text(font, module.name, sx + 6, y + 4, nameColor, true)
+            context.drawString(font, module.name, sx + 6, y + 4, nameColor, true)
             val stateLabel = if (module.enabled) "ON" else "OFF"
-            context.text(font, stateLabel, sx + sw - font.width(stateLabel) - 4, y + 4, if (module.enabled) accent else COLOR_TEXT_FAINT, true)
+            context.drawString(font, stateLabel, sx + sw - font.width(stateLabel) - 4, y + 4, if (module.enabled) accent else COLOR_TEXT_FAINT, true)
             y += ROW_HEIGHT
         }
     }
@@ -110,7 +110,7 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
 
         if (mouseX < guiX || mouseX > guiX + WIDTH || mouseY < guiY || mouseY > guiY + h) {
             // Click outside the palette -- close without acting.
-            minecraft?.gui?.setScreen(null)
+            minecraft?.setScreen(null)
             return true
         }
 
@@ -119,7 +119,7 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
         for ((i, module) in results.withIndex()) {
             if (mouseY >= y && mouseY < y + ROW_HEIGHT) {
                 module.toggle()
-                minecraft?.gui?.setScreen(null)
+                minecraft?.setScreen(null)
                 return true
             }
             y += ROW_HEIGHT
@@ -142,7 +142,7 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
                 return true
             }
             GLFW.GLFW_KEY_ESCAPE -> {
-                minecraft?.gui?.setScreen(null)
+                minecraft?.setScreen(null)
                 return true
             }
             GLFW.GLFW_KEY_DOWN -> {
@@ -157,7 +157,7 @@ class CommandPaletteScreen : Screen(Component.literal("Aero Command Palette")) {
             GLFW.GLFW_KEY_ENTER -> {
                 val results = matches().take(MAX_VISIBLE_ROWS)
                 results.getOrNull(selectedIndex)?.toggle()
-                minecraft?.gui?.setScreen(null)
+                minecraft?.setScreen(null)
                 return true
             }
         }

@@ -1,7 +1,7 @@
 package dev.finn.aero.gui
 
 import dev.finn.aero.setting.ColorSetting
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 
 /**
  * Photoshop-style colour picker popup: a saturation/value square plus a
@@ -68,7 +68,7 @@ class ColorPickerPopup {
     private fun hueX() = svX() + SV_SIZE + GAP
     private fun hueY() = svY()
 
-    fun render(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+    fun render(context: GuiGraphics, mouseX: Int, mouseY: Int) {
         val setting = target ?: return
 
         context.fill(x, y, x + WIDTH, y + HEIGHT, COLOR_BG)
@@ -78,7 +78,7 @@ class ColorPickerPopup {
         val closeX = x + WIDTH - PADDING - CLOSE_SIZE
         val closeY = y + 3
         val closeHovered = mouseX in closeX..(closeX + CLOSE_SIZE) && mouseY in closeY..(closeY + CLOSE_SIZE)
-        context.text(
+        context.drawString(
             net.minecraft.client.Minecraft.getInstance().font,
             "x", closeX, closeY, if (closeHovered) 0xFFFFFFFF.toInt() else 0xFF83878E.toInt(), true,
         )
@@ -92,7 +92,7 @@ class ColorPickerPopup {
         drawBorder(context, svX(), swatchY, CONTENT_WIDTH, 10, COLOR_BORDER)
     }
 
-    private fun renderSvSquare(context: GuiGraphicsExtractor) {
+    private fun renderSvSquare(context: GuiGraphics) {
         val sx = svX()
         val sy = svY()
         // Coarse-grained gradient: cheap per-pixel-ish blend using a small
@@ -118,7 +118,7 @@ class ColorPickerPopup {
         drawRing(context, indX, indY, 3, if (value > 0.6f) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
     }
 
-    private fun renderHueSlider(context: GuiGraphicsExtractor) {
+    private fun renderHueSlider(context: GuiGraphics) {
         val hx = hueX()
         val hy = hueY()
         val steps = 30
@@ -135,14 +135,14 @@ class ColorPickerPopup {
         context.fill(hx - 2, indY - 1, hx + HUE_WIDTH + 2, indY + 1, 0xFFFFFFFF.toInt())
     }
 
-    private fun drawRing(context: GuiGraphicsExtractor, cx: Int, cy: Int, r: Int, color: Int) {
+    private fun drawRing(context: GuiGraphics, cx: Int, cy: Int, r: Int, color: Int) {
         context.fill(cx - r, cy - r, cx + r, cy - r + 1, color)
         context.fill(cx - r, cy + r - 1, cx + r, cy + r, color)
         context.fill(cx - r, cy - r, cx - r + 1, cy + r, color)
         context.fill(cx + r - 1, cy - r, cx + r, cy + r, color)
     }
 
-    private fun drawBorder(context: GuiGraphicsExtractor, bx: Int, by: Int, w: Int, h: Int, color: Int) {
+    private fun drawBorder(context: GuiGraphics, bx: Int, by: Int, w: Int, h: Int, color: Int) {
         context.fill(bx, by, bx + w, by + 1, color)
         context.fill(bx, by + h - 1, bx + w, by + h, color)
         context.fill(bx, by, bx + 1, by + h, color)

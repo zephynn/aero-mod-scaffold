@@ -1,9 +1,9 @@
 package dev.finn.aero.module
 
 import dev.finn.aero.setting.Setting
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 import org.lwjgl.glfw.GLFW
 
@@ -73,8 +73,8 @@ abstract class Module(
     open fun onTick() {}
 
     /** Called every rendered frame while enabled, for 2D HUD overlays (drawn over the whole screen). */
-    open fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {}
+    open fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {}
 
     /** Called every rendered frame while enabled, for 3D world-space overlays (ESP boxes, waypoints). */
-    open fun onWorldRender(context: LevelRenderContext) {}
+    open fun onWorldRender(context: WorldRenderContext) {}
 }

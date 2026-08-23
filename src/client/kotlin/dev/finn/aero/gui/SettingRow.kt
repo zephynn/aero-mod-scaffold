@@ -47,7 +47,7 @@ object SettingRow {
 
     fun heightFor(setting: Setting<*>) = if (setting is SliderSetting) SLIDER_ROW_HEIGHT else SETTING_ROW_HEIGHT
 
-    /** The bit of per-screen state [handleClick] needs -- no rendering, so it doesn't need a live [GuiGraphicsExtractor] to construct. */
+    /** The bit of per-screen state [handleClick] needs -- no rendering, so it doesn't need a live [GuiGraphics] to construct. */
     interface ClickCtx {
         /** ModeSetting currently showing its expanded inline option list, or null. */
         var modeDropdown: ModeSetting?

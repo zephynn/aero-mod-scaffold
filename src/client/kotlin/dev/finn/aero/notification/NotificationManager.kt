@@ -3,7 +3,7 @@ package dev.finn.aero.notification
 import dev.finn.aero.config.ClientSettings
 import dev.finn.aero.gui.Anim
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 
 /**
@@ -41,7 +41,7 @@ object NotificationManager {
         }
     }
 
-    fun onHudRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    fun onHudRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         val now = System.currentTimeMillis()
         // Expiry doesn't remove instantly -- flip into a "closing" state so
         // the loop below eases appearAnim back to 0 (a real slide-out,
@@ -91,7 +91,7 @@ object NotificationManager {
     }
 
     private fun drawCard(
-        context: GuiGraphicsExtractor,
+        context: GuiGraphics,
         textRenderer: net.minecraft.client.gui.Font,
         notification: Notification,
         x: Int,
@@ -107,9 +107,9 @@ object NotificationManager {
         context.fill(x, y, x + 2, y + CARD_HEIGHT, accent)
 
         val textX = x + CARD_PADDING + 3
-        context.text(textRenderer, notification.title, textX, y + CARD_PADDING, accent, true)
+        context.drawString(textRenderer, notification.title, textX, y + CARD_PADDING, accent, true)
         val clippedMessage = clipToWidth(textRenderer, notification.message, CARD_WIDTH - CARD_PADDING * 2 - 3)
-        context.text(textRenderer, clippedMessage, textX, y + CARD_PADDING + TITLE_HEIGHT, dimText, true)
+        context.drawString(textRenderer, clippedMessage, textX, y + CARD_PADDING + TITLE_HEIGHT, dimText, true)
 
         val barY = y + CARD_HEIGHT - BAR_HEIGHT - 2
         val barX0 = x + CARD_PADDING

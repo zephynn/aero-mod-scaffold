@@ -6,7 +6,7 @@ import dev.finn.aero.module.impl.xray.XrayCustomConfig
 import dev.finn.aero.module.impl.xray.XrayModule
 import net.minecraft.world.level.block.Block
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.core.registries.BuiltInRegistries
@@ -58,14 +58,14 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
         return matching.sortedWith(compareByDescending<Block> { XrayCustomConfig.contains(it) }.thenBy { BuiltInRegistries.BLOCK.getKey(it).path })
     }
 
-    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         context.fill(0, 0, width, height, COLOR_DIM)
         context.fill(guiX, guiY, guiX + WIDTH, guiY + HEIGHT, colorBg)
         context.fill(guiX, guiY, guiX + WIDTH, guiY + CHROME_HEIGHT, colorChrome)
 
         val backHovered = mouseX in guiX..(guiX + 16) && mouseY in guiY..(guiY + CHROME_HEIGHT)
-        context.text(font, "‹", guiX + 7, guiY + 6, if (backHovered) accent else COLOR_TEXT_DIM, true)
-        context.text(font, "X-RAY CUSTOM LIST", guiX + 18, guiY + 6, COLOR_TEXT_DIM, true)
+        context.drawString(font, "‹", guiX + 7, guiY + 6, if (backHovered) accent else COLOR_TEXT_DIM, true)
+        context.drawString(font, "X-RAY CUSTOM LIST", guiX + 18, guiY + 6, COLOR_TEXT_DIM, true)
 
         val sx = guiX + 8
         var sy = guiY + CHROME_HEIGHT + 6
@@ -75,7 +75,7 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
             searchQuery.isNotEmpty() -> searchQuery
             else -> "Search blocks..."
         }
-        context.text(font, searchLabel, sx + 4, sy + 4, if (searchQuery.isNotEmpty()) COLOR_TEXT else COLOR_TEXT_DIM, true)
+        context.drawString(font, searchLabel, sx + 4, sy + 4, if (searchQuery.isNotEmpty()) COLOR_TEXT else COLOR_TEXT_DIM, true)
         sy += SEARCH_HEIGHT + 4
 
         val listTop = sy
@@ -93,14 +93,14 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
             else if (hovered) context.fill(sx, rowY, sx + sw, rowY + ROW_HEIGHT, 0x20FFFFFF.toInt())
 
             val name = BuiltInRegistries.BLOCK.getKey(block).path
-            context.text(font, name, sx + 4, rowY + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM, true)
+            context.drawString(font, name, sx + 4, rowY + 3, if (selected) COLOR_TEXT else COLOR_TEXT_DIM, true)
             val mark = if (selected) "✓" else "+"
-            context.text(font, mark, sx + sw - 10, rowY + 3, if (selected) accent else COLOR_TEXT_DIM, true)
+            context.drawString(font, mark, sx + sw - 10, rowY + 3, if (selected) accent else COLOR_TEXT_DIM, true)
             rowY += ROW_HEIGHT
         }
 
         if (blocks.isEmpty()) {
-            context.text(font, "No matches", sx + (sw - font.width("No matches")) / 2, (listTop + listBottom) / 2, COLOR_TEXT_DIM, true)
+            context.drawString(font, "No matches", sx + (sw - font.width("No matches")) / 2, (listTop + listBottom) / 2, COLOR_TEXT_DIM, true)
         }
 
         val resetY = guiY + HEIGHT - 20
@@ -108,7 +108,7 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
         context.fill(sx, resetY, sx + sw, resetY + 16, colorFieldBg)
         if (resetHovered) context.fill(sx, resetY, sx + sw, resetY + 16, 0x20FFFFFF.toInt())
         val resetLabel = "Reset to Default (Ores)"
-        context.text(font, resetLabel, sx + (sw - font.width(resetLabel)) / 2, resetY + 4, COLOR_TEXT_DIM, true)
+        context.drawString(font, resetLabel, sx + (sw - font.width(resetLabel)) / 2, resetY + 4, COLOR_TEXT_DIM, true)
     }
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
@@ -116,7 +116,7 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
         val mouseY = click.y().toInt()
 
         if (mouseX in guiX..(guiX + 16) && mouseY in guiY..(guiY + CHROME_HEIGHT)) {
-            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
+            minecraft?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
 
@@ -179,14 +179,14 @@ class XrayCustomScreen(private val module: XrayModule) : Screen(Component.litera
                     return true
                 }
                 GLFW.GLFW_KEY_ESCAPE -> {
-                    minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
+                    minecraft?.setScreen(GuiOpener.clickGuiScreen())
                     return true
                 }
             }
             return true
         }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
+            minecraft?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
         return super.keyPressed(input)

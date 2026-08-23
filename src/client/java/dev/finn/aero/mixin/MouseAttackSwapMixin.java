@@ -46,7 +46,7 @@ public class MouseAttackSwapMixin {
         LocalPlayer player = client.player;
         // Only in actual gameplay -- not while a screen (inventory, chat,
         // pause menu, ...) is open and left-click means something else.
-        if (player == null || client.getConnection() == null || client.gui.screen() != null) return;
+        if (player == null || client.getConnection() == null || client.screen != null) return;
 
         int primary = AttributeSwapState.INSTANCE.getPrimarySlot();
         int secondary = AttributeSwapState.INSTANCE.getSecondarySlot();

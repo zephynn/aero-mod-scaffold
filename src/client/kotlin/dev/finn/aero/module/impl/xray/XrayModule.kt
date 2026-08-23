@@ -11,9 +11,9 @@ import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.SliderSetting
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
 import net.minecraft.world.level.block.Block
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 import net.minecraft.world.phys.AABB
 import net.minecraft.core.BlockPos
@@ -174,7 +174,7 @@ class XrayModule : Module(
         return results
     }
 
-    override fun onWorldRender(context: LevelRenderContext) {
+    override fun onWorldRender(context: WorldRenderContext) {
         if (cachedIndividual.isEmpty() && cachedClusters.isEmpty()) return
         // "None" relies on terrain transparency alone -- skip the ESP
         // outline/fill/tracer draw entirely (tracer is gated separately in
@@ -182,9 +182,9 @@ class XrayModule : Module(
         // highlight itself).
         if (highlightStyle.value == "None") return
 
-        val camPos = mc.gameRenderer.mainCamera().position()
-        val collector = context.submitNodeCollector()
-        val poseStack = context.poseStack()
+        val camPos = mc.gameRenderer.mainCamera.position()
+        val collector = context.commandQueue()
+        val poseStack = context.matrices()
         val color = highlightColor.value
         val style = highlightStyle.value
 
@@ -220,7 +220,7 @@ class XrayModule : Module(
         }
     }
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         if (mode.value == "Base Finder" && showClusters.value && cachedClusters.isNotEmpty()) {
             renderClusterLabels(context)
         }
@@ -229,7 +229,7 @@ class XrayModule : Module(
         if (!tracer.value) return
         if (cachedIndividual.isEmpty()) return
 
-        val camera = mc.gameRenderer.mainCamera()
+        val camera = mc.gameRenderer.mainCamera
         val camPos = camera.position()
         val fov = mc.options.fov().get().toFloat()
         val screenW = mc.window.guiScaledWidth
@@ -244,8 +244,8 @@ class XrayModule : Module(
         }
     }
 
-    private fun renderClusterLabels(context: GuiGraphicsExtractor) {
-        val camera = mc.gameRenderer.mainCamera()
+    private fun renderClusterLabels(context: GuiGraphics) {
+        val camera = mc.gameRenderer.mainCamera
         val camPos = camera.position()
         val fov = mc.options.fov().get().toFloat()
         val screenW = mc.window.guiScaledWidth
@@ -255,7 +255,7 @@ class XrayModule : Module(
             val point = EspProjection.project(camPos, camera.yRot(), camera.xRot(), fov, screenW, screenH, cluster.center) ?: continue
             val label = "Base (${cluster.size})"
             val width = mc.font.width(label)
-            context.text(mc.font, label, point.first - width / 2, point.second, highlightColor.value, true)
+            context.drawString(mc.font, label, point.first - width / 2, point.second, highlightColor.value, true)
         }
     }
 }

@@ -4,7 +4,7 @@ import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.SliderSetting
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
@@ -63,7 +63,7 @@ abstract class EspModule(
         highlighted = targetSet
     }
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         if (!tracer.value) return
         val world = mc.level ?: return
         val self = mc.player ?: return
@@ -71,7 +71,7 @@ abstract class EspModule(
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camera = mc.gameRenderer.mainCamera()
+        val camera = mc.gameRenderer.mainCamera
         val camPos = camera.position()
         val fov = mc.options.fov().get().toFloat()
         val screenW = mc.window.guiScaledWidth

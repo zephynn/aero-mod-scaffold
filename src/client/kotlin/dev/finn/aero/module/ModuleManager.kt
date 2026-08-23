@@ -1,7 +1,7 @@
 package dev.finn.aero.module
 
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 
 /**
@@ -38,14 +38,14 @@ object ModuleManager {
     }
 
     /** Called from a Fabric HudElement, once per frame. */
-    fun onHudRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    fun onHudRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         for (module in modules) {
             if (module.enabled) module.onRender(context, tickCounter)
         }
     }
 
-    /** Called from LevelRenderEvents.COLLECT_SUBMITS, once per frame. */
-    fun onWorldRender(context: LevelRenderContext) {
+    /** Called from WorldRenderEvents.END_MAIN, once per frame. */
+    fun onWorldRender(context: WorldRenderContext) {
         for (module in modules) {
             if (module.enabled) module.onWorldRender(context)
         }

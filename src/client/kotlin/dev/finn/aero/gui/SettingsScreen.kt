@@ -5,7 +5,7 @@ import dev.finn.aero.config.ConfigManager
 import dev.finn.aero.config.Theme
 import dev.finn.aero.setting.ColorSetting
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
@@ -79,10 +79,10 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         super.onClose()
     }
 
-    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         advanceWindowAnim()
         if (windowAnim <= 0.001f && closing) {
-            minecraft?.gui?.setScreen(null)
+            minecraft?.setScreen(null)
             return
         }
 
@@ -130,14 +130,14 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         }
     }
 
-    private fun renderChrome(context: GuiGraphicsExtractor, gy: Int, mouseX: Int, mouseY: Int) {
+    private fun renderChrome(context: GuiGraphics, gy: Int, mouseX: Int, mouseY: Int) {
         fill(context, guiX, gy, guiX + WIDTH, gy + CHROME_HEIGHT, colorChrome)
         val backHovered = mouseX in guiX..(guiX + 16) && mouseY in gy..(gy + CHROME_HEIGHT)
         text(context, "‹", guiX + 7, gy + 6, if (backHovered) accent else COLOR_TEXT_DIM)
         text(context, "SETTINGS", guiX + 18, gy + 6, COLOR_TEXT_DIM)
     }
 
-    private fun renderAccentSection(context: GuiGraphicsExtractor, startY: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderAccentSection(context: GuiGraphics, startY: Int, mouseX: Int, mouseY: Int): Int {
         var y = startY
         val x = guiX + 12
         text(context, "ACCENT", x, y, COLOR_TEXT_FAINT)
@@ -175,7 +175,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + SWATCH_SIZE + 8
     }
 
-    private fun renderKeybindRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderKeybindRow(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "OPEN CLICKGUI", x, y + 5, COLOR_TEXT_DIM)
@@ -190,7 +190,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderGuiStyleRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderGuiStyleRow(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "GUI STYLE", x, y + 5, COLOR_TEXT_DIM)
@@ -205,7 +205,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderReducedMotionRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderReducedMotionRow(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "REDUCED MOTION", x, y + 5, COLOR_TEXT_DIM)
@@ -213,7 +213,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderNotificationPositionRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderNotificationPositionRow(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "NOTIFICATIONS", x, y + 5, COLOR_TEXT_FAINT)
@@ -226,7 +226,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderNotificationDurationRow(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int): Int {
+    private fun renderNotificationDurationRow(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int): Int {
         val x = guiX + 12
         val w = WIDTH - 24
         text(context, "DURATION", x, y + 5, COLOR_TEXT_DIM)
@@ -240,7 +240,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         return y + ROW_HEIGHT
     }
 
-    private fun renderResetButton(context: GuiGraphicsExtractor, y: Int, mouseX: Int, mouseY: Int) {
+    private fun renderResetButton(context: GuiGraphics, y: Int, mouseX: Int, mouseY: Int) {
         val x = guiX + 12
         val w = WIDTH - 24
         val h = 16
@@ -253,22 +253,22 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
 
     // --- helpers -------------------------------------------------------------
 
-    private fun fill(context: GuiGraphicsExtractor, x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
+    private fun fill(context: GuiGraphics, x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
         context.fill(x0, y0, x1, y1, scaleAlpha(color, easeOutCubic(windowAnim)))
     }
 
-    private fun text(context: GuiGraphicsExtractor, str: String, x: Int, y: Int, color: Int) {
-        context.text(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)), true)
+    private fun text(context: GuiGraphics, str: String, x: Int, y: Int, color: Int) {
+        context.drawString(font, str, x, y, scaleAlpha(color, easeOutCubic(windowAnim)), true)
     }
 
-    private fun drawBorder(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, color: Int) {
+    private fun drawBorder(context: GuiGraphics, x: Int, y: Int, w: Int, h: Int, color: Int) {
         fill(context, x, y, x + w, y + 1, color)
         fill(context, x, y + h - 1, x + w, y + h, color)
         fill(context, x, y, x + 1, y + h, color)
         fill(context, x + w - 1, y, x + w, y + h, color)
     }
 
-    private fun drawToggle(context: GuiGraphicsExtractor, x: Int, y: Int, w: Int, h: Int, anim: Float) {
+    private fun drawToggle(context: GuiGraphics, x: Int, y: Int, w: Int, h: Int, anim: Float) {
         fill(context, x, y, x + w, y + h, lerpColor(COLOR_TRACK_OFF, accent, anim))
         val knobD = h - 4
         val knobX = x + 2 + ((w - knobD - 4) * anim).toInt()
@@ -310,7 +310,7 @@ class SettingsScreen : Screen(Component.literal("Aero Settings")) {
         }
 
         if (mouseX in guiX.toDouble()..(guiX + 16).toDouble() && mouseY in guiY.toDouble()..(guiY + CHROME_HEIGHT).toDouble()) {
-            minecraft?.gui?.setScreen(GuiOpener.clickGuiScreen())
+            minecraft?.setScreen(GuiOpener.clickGuiScreen())
             return true
         }
 

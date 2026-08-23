@@ -5,14 +5,14 @@ import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
 import dev.finn.aero.setting.ColorSetting
 import dev.finn.aero.setting.SliderSetting
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.ChestBlock
 import net.minecraft.world.level.block.entity.ChestBlockEntity
 import net.minecraft.world.level.block.entity.EnderChestBlockEntity
 import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity
 import net.minecraft.world.level.block.state.properties.ChestType
-import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.player.Player
@@ -105,27 +105,27 @@ class ChestEsp : Module(
         return results
     }
 
-    override fun onWorldRender(context: LevelRenderContext) {
+    override fun onWorldRender(context: WorldRenderContext) {
         val world = mc.level ?: return
         val self = mc.player ?: return
 
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camPos = mc.gameRenderer.mainCamera().position()
+        val camPos = mc.gameRenderer.mainCamera.position()
 
         // 26.x submits geometry rather than writing into a shared
         // VertexConsumerProvider: one submitCustomGeometry call per render
         // type hands back the pose + buffer to draw into at the right point
         // in the frame.
-        context.submitNodeCollector().submitCustomGeometry(context.poseStack(), EspRenderLayers.NO_DEPTH_LINES) { pose, buffer ->
+        context.commandQueue().submitCustomGeometry(context.matrices(), EspRenderLayers.NO_DEPTH_LINES) { pose, buffer ->
             for ((box, color) in targets) {
                 EspRendering.drawBox(pose, buffer, camPos, box, color)
             }
         }
     }
 
-    override fun onRender(context: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+    override fun onRender(context: GuiGraphics, tickCounter: DeltaTracker) {
         if (!tracer.value) return
         val world = mc.level ?: return
         val self = mc.player ?: return
@@ -133,7 +133,7 @@ class ChestEsp : Module(
         val targets = collectTargets(world, self, range.value)
         if (targets.isEmpty()) return
 
-        val camera = mc.gameRenderer.mainCamera()
+        val camera = mc.gameRenderer.mainCamera
         val camPos = camera.position()
         val fov = mc.options.fov().get().toFloat()
         val screenW = mc.window.guiScaledWidth

@@ -43,7 +43,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.minecraft.resources.Identifier
 import net.minecraft.client.Minecraft
 import org.slf4j.Logger
@@ -126,10 +126,10 @@ object AeroClient : ClientModInitializer {
         // overlays (ESP boxes, waypoint beam) are separate Fabric API
         // events with different coordinate spaces -- fan both out through
         // ModuleManager the same way tick/keybinds already are.
-        // 26.x replaced HudRenderCallback with named, orderable HUD elements,
-        // and WorldRenderEvents with the render-state extraction pipeline's
-        // LevelRenderEvents -- COLLECT_SUBMITS is where custom world geometry
-        // gets submitted now.
+        // Named, orderable HUD elements (HudElementRegistry) and world-space
+        // overlays (WorldRenderEvents.END_MAIN, still submission-based via
+        // WorldRenderContext#commandQueue()) -- fan both out through
+        // ModuleManager the same way tick/keybinds already are.
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath(MOD_ID, "overlays"),
             HudElement { context, tickCounter ->
@@ -137,7 +137,7 @@ object AeroClient : ClientModInitializer {
                 NotificationManager.onHudRender(context, tickCounter)
             },
         )
-        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+        WorldRenderEvents.END_MAIN.register { context ->
             ModuleManager.onWorldRender(context)
         }
 
@@ -154,8 +154,8 @@ object AeroClient : ClientModInitializer {
 
         val guiKey = ClientSettings.guiKeybind
         val guiDown = org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), guiKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS
-        if (guiDown && wasDown[guiKey] != true && client.gui.screen() == null) {
-            client.gui.setScreen(GuiOpener.clickGuiScreen())
+        if (guiDown && wasDown[guiKey] != true && client.screen == null) {
+            client.setScreen(GuiOpener.clickGuiScreen())
         }
         wasDown[guiKey] = guiDown
 
@@ -168,14 +168,14 @@ object AeroClient : ClientModInitializer {
             org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
         val paletteKey = org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
         val paletteDown = altDown && org.lwjgl.glfw.GLFW.glfwGetKey(window.handle(), paletteKey) == org.lwjgl.glfw.GLFW.GLFW_PRESS
-        if (paletteDown && wasDown[PALETTE_WAS_DOWN_KEY] != true && client.gui.screen() == null) {
-            client.gui.setScreen(CommandPaletteScreen())
+        if (paletteDown && wasDown[PALETTE_WAS_DOWN_KEY] != true && client.screen == null) {
+            client.setScreen(CommandPaletteScreen())
         }
         wasDown[PALETTE_WAS_DOWN_KEY] = paletteDown
 
         // Don't let module keybinds fire while any screen (including our own
         // GUI, or an unrelated one like the inventory) is open.
-        if (client.gui.screen() != null) return
+        if (client.screen != null) return
 
         for (module in ModuleManager.all()) {
             val key = module.keybind
