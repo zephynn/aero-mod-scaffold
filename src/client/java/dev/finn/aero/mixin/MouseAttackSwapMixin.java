@@ -39,7 +39,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MouseAttackSwapMixin {
     @Inject(method = "onButton", at = @At("HEAD"))
     private void aero$onButton(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
-        if (!AttributeSwapState.INSTANCE.getActive()) return;
+        if (!AttributeSwapState.INSTANCE.getActive() || AttributeSwapState.INSTANCE.getLegacyMode()) return;
         if (info.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return;
 
         Minecraft client = Minecraft.getInstance();

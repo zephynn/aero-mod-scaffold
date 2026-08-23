@@ -2,6 +2,8 @@ package dev.finn.aero.module.impl
 
 import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
+import dev.finn.aero.setting.ModeSetting
+import dev.finn.aero.setting.SliderSetting
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.EquipmentSlot
@@ -19,6 +21,12 @@ import net.minecraft.world.item.ItemStack
  * Equips via two real container clicks -- pick up the better piece, then
  * click the armor slot to swap it in -- the same manual swap a player
  * dragging armor into place would send, not a direct inventory edit.
+ *
+ * Legacy mode re-checks and re-equips every single tick -- continuously
+ * optimal with zero latency, which no player manually managing their
+ * inventory does. New mode (default) only re-checks on a randomized
+ * interval, the way a player glancing at their armor bar every so often
+ * (rather than watching it every 50ms) actually behaves.
  */
 class AutoArmor : Module(
     name = "AutoArmor",
@@ -27,7 +35,50 @@ class AutoArmor : Module(
 ) {
     private val materialRank = listOf("leather", "golden", "chainmail", "iron", "diamond", "netherite")
 
+    private val mode = register(
+        ModeSetting("Mode", "New only re-checks every so often. Legacy re-checks and re-equips every tick.", listOf("New", "Legacy"), "New"),
+    )
+    private val minIntervalTicks = register(
+        SliderSetting("Min Interval", "New mode only: fastest allowed re-check interval, in ticks (~50ms each).", 20.0, 1.0, 200.0, 5.0),
+    )
+    private val maxIntervalTicks = register(
+        SliderSetting("Max Interval", "New mode only: slowest allowed re-check interval, in ticks (~50ms each).", 60.0, 1.0, 200.0, 5.0),
+    )
+
+    /** Ticks until the next New-mode re-check, or -1 if not yet armed (checks immediately on enable). */
+    private var ticksUntilCheck = -1
+
+    override fun onEnable() {
+        ticksUntilCheck = -1
+    }
+
     override fun onTick() {
+        if (mode.value == "Legacy") {
+            equipBest()
+            return
+        }
+
+        if (ticksUntilCheck < 0) {
+            equipBest()
+            rearm()
+            return
+        }
+
+        if (ticksUntilCheck == 0) {
+            equipBest()
+            rearm()
+        } else {
+            ticksUntilCheck--
+        }
+    }
+
+    private fun rearm() {
+        val min = minIntervalTicks.value.toInt()
+        val max = maxIntervalTicks.value.toInt().coerceAtLeast(min)
+        ticksUntilCheck = (min..max).random()
+    }
+
+    private fun equipBest() {
         val player = mc.player ?: return
         val gameMode = mc.gameMode ?: return
         val menu = player.inventoryMenu

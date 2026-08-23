@@ -34,4 +34,14 @@ object AttributeSwapState {
     /** True between our own press-triggered swap and the matching release, so the release handler knows it was us. */
     @Volatile
     var weSwapped: Boolean = false
+
+    /**
+     * When true, MinecraftClientAttackMixin's original same-tick
+     * swap-in-startAttack/swap-back-on-return mechanism runs instead of
+     * MouseAttackSwapMixin's press/release mechanism. The two mixins check
+     * this flag and defer to each other so exactly one of them ever acts
+     * on a given click.
+     */
+    @Volatile
+    var legacyMode: Boolean = false
 }

@@ -13,6 +13,7 @@
     "InputAccessor",
     "KeyboardInputMixin",
     "LightmapExtractorMixin",
+    "MinecraftClientAttackMixin",
     "MouseAttackSwapMixin"
   ]
 }

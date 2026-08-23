@@ -3,6 +3,7 @@ package dev.finn.aero.module.impl
 import dev.finn.aero.module.Category
 import dev.finn.aero.module.Module
 import dev.finn.aero.setting.BoolSetting
+import dev.finn.aero.setting.ModeSetting
 import dev.finn.aero.setting.SliderSetting
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
 
@@ -32,6 +33,14 @@ class AutoAttributeSwap : Module(
     description = "Swaps to a secondary weapon while the attack button is held, then swaps back on release.",
     category = Category.COMBAT,
 ) {
+    private val mode = register(
+        ModeSetting(
+            "Mode",
+            "New reacts to the raw mouse press/release (see MouseAttackSwapMixin). Legacy is the original same-tick swap-in-attack/swap-back-on-return mechanism.",
+            listOf("New", "Legacy"),
+            "New",
+        ),
+    )
     private val primarySlot = register(
         SliderSetting("Primary Slot", "Hotbar slot (1-9) you attack from normally.", 1.0, 1.0, 9.0, 1.0),
     )
@@ -79,5 +88,6 @@ class AutoAttributeSwap : Module(
         AttributeSwapState.secondarySlot = (secondarySlot.value.toInt() - 1).coerceIn(0, 8)
         AttributeSwapState.requireHoldingPrimary = requireHoldingPrimary.value
         AttributeSwapState.swapBack = swapBack.value
+        AttributeSwapState.legacyMode = mode.value == "Legacy"
     }
 }
